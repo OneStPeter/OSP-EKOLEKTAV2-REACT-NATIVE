@@ -1,34 +1,39 @@
-import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import React from 'react';
-import { useColorScheme } from 'react-native';
+import { Tabs } from "expo-router";
+import React from "react";
+import { useColorScheme, View } from "react-native";
 
-const LIGHT = { bg: '#ffffff', indicator: '#F0F0F3', text: '#000000' };
-const DARK = { bg: '#000000', indicator: '#212225', text: '#ffffff' };
+import { AppHeader } from "@/components/navigation/AppHeader";
+import { BottomNavBar } from "@/components/navigation/BottomNavBar";
+import { SidebarDrawer } from "@/components/navigation/SidebarDrawer";
+import { NavProvider } from "@/context/nav-context";
+
+const BG = { light: "#f0fdf4", dark: "#030f0b" };
 
 export default function TabsLayout() {
   const scheme = useColorScheme();
-  const c = scheme === 'dark' ? DARK : LIGHT;
+  const bg = BG[scheme === "dark" ? "dark" : "light"];
 
   return (
-    <NativeTabs
-      backgroundColor={c.bg}
-      indicatorColor={c.indicator}
-      labelStyle={{ selected: { color: c.text } }}>
-      <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/home.png')}
-          renderingMode="template"
-        />
-      </NativeTabs.Trigger>
+    <NavProvider>
+      <View style={{ flex: 1, backgroundColor: bg }}>
+        <AppHeader />
 
-      <NativeTabs.Trigger name="explore">
-        <NativeTabs.Trigger.Label>Explore</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
-        />
-      </NativeTabs.Trigger>
-    </NativeTabs>
+        <Tabs
+          screenOptions={{ headerShown: false, lazy: false }}
+          tabBar={() => null}
+        >
+          <Tabs.Screen name="index" options={{ title: "index" }} />
+          <Tabs.Screen name="mcpr" options={{ title: "MCPR" }} />
+          <Tabs.Screen name="payment" options={{ title: "Payment" }} />
+          <Tabs.Screen name="comte" options={{ title: "ComTe" }} />
+          <Tabs.Screen name="profile" options={{ title: "Profile" }} />
+          {/* Keep explore route accessible but unlisted */}
+          <Tabs.Screen name="explore" options={{ href: null }} />
+        </Tabs>
+
+        <BottomNavBar />
+        <SidebarDrawer />
+      </View>
+    </NavProvider>
   );
 }
