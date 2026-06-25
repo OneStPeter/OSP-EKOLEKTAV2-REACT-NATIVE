@@ -2,10 +2,12 @@ import { Tabs } from "expo-router";
 import React from "react";
 import { useColorScheme, View } from "react-native";
 
+import { ChatbotFAB } from "@/components/chatbot/ChatbotFAB";
 import { AppHeader } from "@/components/navigation/AppHeader";
 import { BottomNavBar } from "@/components/navigation/BottomNavBar";
 import { SidebarDrawer } from "@/components/navigation/SidebarDrawer";
 import { NavProvider } from "@/context/nav-context";
+import { UserProfileProvider } from "@/context/user-profile-context";
 
 const BG = { light: "#f0fdf4", dark: "#030f0b" };
 
@@ -14,6 +16,7 @@ export default function TabsLayout() {
   const bg = BG[scheme === "dark" ? "dark" : "light"];
 
   return (
+    <UserProfileProvider>
     <NavProvider>
       <View style={{ flex: 1, backgroundColor: bg }}>
         <AppHeader />
@@ -33,7 +36,9 @@ export default function TabsLayout() {
 
         <BottomNavBar />
         <SidebarDrawer />
+        <ChatbotFAB />
       </View>
     </NavProvider>
+    </UserProfileProvider>
   );
 }

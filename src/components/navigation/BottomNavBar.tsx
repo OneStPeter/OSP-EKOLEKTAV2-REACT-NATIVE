@@ -3,16 +3,19 @@ import { usePathname } from "expo-router";
 import { Coins, DollarSign, Home, Receipt, User } from "lucide-react-native";
 import React from "react";
 import {
+  Image,
   Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
   useColorScheme,
+  View,
 } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useNav } from "@/context/nav-context";
+import { useUserProfile } from "@/context/user-profile-context";
 
 export const BOTTOM_NAV_HEIGHT = 68;
 
@@ -69,6 +72,7 @@ export function BottomNavBar() {
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
   const c = C[scheme === "dark" ? "dark" : "light"];
+  const { imageUri, initials } = useUserProfile();
 
   const bottomPad = Math.max(insets.bottom, 8);
   const totalHeight = BOTTOM_NAV_HEIGHT + bottomPad;
@@ -116,11 +120,31 @@ export function BottomNavBar() {
                 style={[StyleSheet.absoluteFill, styles.tabGradient]}
               />
             )}
-            <tab.Icon
-              size={22}
-              color={color}
-              strokeWidth={active ? 2.3 : 1.7}
-            />
+            {tab.name === "profile" ? (
+              <View
+                style={[
+                  styles.profileAvatar,
+                  { borderColor: active ? c.active : c.inactive },
+                ]}
+              >
+                {imageUri ? (
+                  <Image
+                    source={{ uri: imageUri }}
+                    style={styles.profileAvatarImg}
+                  />
+                ) : (
+                  <Text style={[styles.profileAvatarText, { color: active ? c.active : c.inactive }]}>
+                    {initials}
+                  </Text>
+                )}
+              </View>
+            ) : (
+              <tab.Icon
+                size={22}
+                color={color}
+                strokeWidth={active ? 2.3 : 1.7}
+              />
+            )}
             <Text
               style={[
                 styles.label,
@@ -193,5 +217,24 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 10,
     letterSpacing: 0.1,
+  },
+  profileAvatar: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  profileAvatarImg: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+  },
+  profileAvatarText: {
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
 });
