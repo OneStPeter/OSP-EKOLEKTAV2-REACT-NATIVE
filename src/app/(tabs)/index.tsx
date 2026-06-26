@@ -9,6 +9,7 @@ import {
   UserCheck,
   UserMinus,
   UserPlus,
+  Users,
   UserX,
   Zap,
 } from "lucide-react-native";
@@ -41,7 +42,7 @@ import { useScrollNav } from "@/hooks/use-scroll-nav";
 // ── Design tokens ──────────────────────────────────────────────────────────
 const C = {
   ink: "#1B2024",
-  body: "#3C434B",
+  body: "#71717a",
   muted: "#8B9097",
   border: "#ECEEF0",
   dots: "#D1D5DB",
@@ -323,7 +324,7 @@ function Card({
     <View style={s.card}>
       <View style={s.cardHeader}>
         <View style={[s.cardIconWrap, { backgroundColor: iconColor + "18" }]}>
-          <Icon size={14} color={iconColor} strokeWidth={2.2} />
+          <Icon size={14} strokeWidth={2.2} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={s.cardTitle}>{title}</Text>
@@ -503,11 +504,11 @@ function BarItem({
     const stagger = index * 40;
     barH.value = withDelay(
       stagger,
-      withTiming(h, { duration: 500, easing: Easing.out(Easing.cubic) })
+      withTiming(h, { duration: 500, easing: Easing.out(Easing.cubic) }),
     );
     labelOpacity.value = withDelay(
       stagger + 350,
-      withTiming(1, { duration: 250, easing: Easing.out(Easing.cubic) })
+      withTiming(1, { duration: 250, easing: Easing.out(Easing.cubic) }),
     );
   }, []); // mount only — key={year} remounts on year change
 
@@ -641,7 +642,10 @@ export default function HomeScreen() {
       style={{ backgroundColor: C.bg }}
       contentContainerStyle={[
         s.content,
-        { paddingBottom: BOTTOM_NAV_HEIGHT + insets.bottom + 24, paddingHorizontal: PADDING_H },
+        {
+          paddingBottom: BOTTOM_NAV_HEIGHT + insets.bottom + 24,
+          paddingHorizontal: PADDING_H,
+        },
       ]}
       showsVerticalScrollIndicator={false}
     >
@@ -652,7 +656,14 @@ export default function HomeScreen() {
       />
       {isTablet ? (
         // Tablets: 2-column static grid
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: TILE_GAP, marginBottom: 4 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: TILE_GAP,
+            marginBottom: 4,
+          }}
+        >
           {TILES.map((tile, i) => (
             <View key={i} style={{ width: CELL_W }}>
               <Tile tile={tile} />
@@ -696,7 +707,10 @@ export default function HomeScreen() {
 
             <View style={s.dots}>
               {TILES.map((_, i) => (
-                <View key={i} style={[s.dot, activeSlide === i && s.dotActive]} />
+                <View
+                  key={i}
+                  style={[s.dot, activeSlide === i && s.dotActive]}
+                />
               ))}
             </View>
 
@@ -719,7 +733,7 @@ export default function HomeScreen() {
 
       <Card
         icon={TrendingUp}
-        iconColor="#1B9E57"
+        iconColor={C.body}
         title="Quota & Collection"
         subtitle="Amount targets"
       >
@@ -735,8 +749,8 @@ export default function HomeScreen() {
       </Card>
 
       <Card
-        icon={UserCheck}
-        iconColor="#1976D2"
+        icon={Users}
+        iconColor={C.body}
         title="Accounts Due & Collected"
         subtitle="Account count targets"
       >
@@ -756,7 +770,7 @@ export default function HomeScreen() {
 
       <Card
         icon={Zap}
-        iconColor="#F57C00"
+        iconColor={C.body}
         title="Efficiency Rates"
         subtitle="Collection efficiency"
       >
@@ -809,7 +823,7 @@ export default function HomeScreen() {
 
       <Card
         icon={Trophy}
-        iconColor="#F59E0B"
+        iconColor={C.body}
         title="Sales Agent Leaderboard"
         subtitle="Ranked by new sales this month"
       >
@@ -826,7 +840,7 @@ export default function HomeScreen() {
 
       <Card
         icon={BarChart2}
-        iconColor={C.primary}
+        iconColor={C.body}
         title="Monthly New Sales"
         subtitle="New plans enrolled per month"
       >
@@ -929,13 +943,14 @@ const s = StyleSheet.create({
   cardIconWrap: {
     width: 30,
     height: 30,
-    borderRadius: 8,
+    borderRadius: 99,
     alignItems: "center",
     justifyContent: "center",
   },
   cardTitle: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: "700",
+    lineHeight: 19,
     color: C.ink,
   },
   cardSub: {
@@ -985,7 +1000,7 @@ const s = StyleSheet.create({
 
   // Tile (carousel)
   tile: {
-    borderRadius: 18,
+    borderRadius: 24,
     borderWidth: 2,
     padding: 18,
     position: "relative",
@@ -1006,13 +1021,13 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   tileTitle: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: "600",
     color: C.body,
   },
   tileValue: {
-    fontSize: 24,
-    fontWeight: "800",
+    fontSize: 32,
+    fontWeight: "700",
     letterSpacing: -0.8,
     color: C.ink,
     lineHeight: 40,

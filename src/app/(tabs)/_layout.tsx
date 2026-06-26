@@ -17,28 +17,32 @@ export default function TabsLayout() {
 
   return (
     <UserProfileProvider>
-    <NavProvider>
-      <View style={{ flex: 1, backgroundColor: bg }}>
-        <AppHeader />
+      <NavProvider>
+        <View style={{ flex: 1, backgroundColor: bg }}>
+          <AppHeader />
 
-        <Tabs
-          screenOptions={{ headerShown: false, lazy: false }}
-          tabBar={() => null}
-        >
-          <Tabs.Screen name="index" options={{ title: "index" }} />
-          <Tabs.Screen name="mcpr" options={{ title: "MCPR" }} />
-          <Tabs.Screen name="payment" options={{ title: "Payment" }} />
-          <Tabs.Screen name="comte" options={{ title: "ComTe" }} />
-          <Tabs.Screen name="profile" options={{ title: "Profile" }} />
-          {/* Keep explore route accessible but unlisted */}
-          <Tabs.Screen name="explore" options={{ href: null }} />
-        </Tabs>
+          <Tabs
+            screenOptions={{ headerShown: false, lazy: false }}
+            tabBar={() => null}
+          >
+            <Tabs.Screen name="index" options={{ title: "index" }} />
+            <Tabs.Screen name="mcpr" options={{ title: "MCPR" }} />
+            <Tabs.Screen name="payment" options={{ title: "Payment" }} />
+            <Tabs.Screen name="comte" options={{ title: "ComTe" }} />
+            <Tabs.Screen
+              name="planholderProfile"
+              options={{ title: "Planholder Profile" }}
+            />
+            <Tabs.Screen name="profile" options={{ title: "Profile" }} />
+            {/* Keep explore route accessible but unlisted */}
+            <Tabs.Screen name="explore" options={{ href: null }} />
+          </Tabs>
 
-        <BottomNavBar />
-        <SidebarDrawer />
-        <ChatbotFAB />
-      </View>
-    </NavProvider>
+          <BottomNavBar />
+          <SidebarDrawer />
+          <ChatbotFAB />
+        </View>
+      </NavProvider>
     </UserProfileProvider>
   );
 }

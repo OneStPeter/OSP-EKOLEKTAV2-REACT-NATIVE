@@ -1,6 +1,5 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { usePathname } from "expo-router";
-import { Coins, DollarSign, Home, Receipt, User } from "lucide-react-native";
 import React from "react";
 import {
   Image,
@@ -14,6 +13,19 @@ import {
 } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  HomeActiveIcon,
+  HomeIcon,
+  McprActiveIcon,
+  McprIcon,
+  NavIconProps,
+  PaymentActiveIcon,
+  PaymentIcon,
+  PlanMgmtActiveIcon,
+  PlanMgmtIcon,
+  ProfileActiveIcon,
+  ProfileIcon,
+} from "./navIcons";
 
 import { useNav } from "@/context/nav-context";
 import { useUserProfile } from "@/context/user-profile-context";
@@ -54,13 +66,51 @@ const C = {
   },
 };
 
-const TABS = [
-  { name: "index", path: "/", label: "Home", Icon: Home },
-  { name: "mcpr", path: "/mcpr", label: "MCPR", Icon: Receipt },
-  { name: "payment", path: "/payment", label: "Payment", Icon: DollarSign },
-  { name: "comte", path: "/comte", label: "ComTe", Icon: Coins },
-  { name: "profile", path: "/profile", label: "Profile", Icon: User },
-] as const;
+type TabItem = {
+  name: string;
+  path: string;
+  label: string;
+  icon: React.ComponentType<NavIconProps>;
+  activeIcon: React.ComponentType<NavIconProps>;
+};
+
+const TABS: TabItem[] = [
+  {
+    name: "index",
+    path: "/",
+    label: "Home",
+    icon: HomeIcon,
+    activeIcon: HomeActiveIcon,
+  },
+  {
+    name: "mcpr",
+    path: "/mcpr",
+    label: "MCPR",
+    icon: McprIcon,
+    activeIcon: McprActiveIcon,
+  },
+  {
+    name: "payment",
+    path: "/payment",
+    label: "Payment",
+    icon: PaymentIcon,
+    activeIcon: PaymentActiveIcon,
+  },
+  {
+    name: "planholderProfile",
+    path: "/planholderProfile",
+    label: "Planholder",
+    icon: PlanMgmtIcon,
+    activeIcon: PlanMgmtActiveIcon,
+  },
+  {
+    name: "profile",
+    path: "/profile",
+    label: "Profile",
+    icon: ProfileIcon,
+    activeIcon: ProfileActiveIcon,
+  },
+];
 
 function isTabActive(tabPath: string, pathname: string): boolean {
   if (tabPath === "/") return pathname === "/" || pathname === "/index";
@@ -99,71 +149,73 @@ export function BottomNavBar() {
       ]}
     >
       <View style={[styles.tabRow, isTablet && styles.tabRowTablet]}>
-      {TABS.map((tab) => {
-        const active = isTabActive(tab.path, pathname);
-        const color = active ? c.active : c.inactive;
+        {TABS.map((tab) => {
+          const active = isTabActive(tab.path, pathname);
+          const color = active ? c.active : c.inactive;
+          const TabIcon = active ? tab.activeIcon : tab.icon;
 
-        return (
-          <TouchableOpacity
-            key={tab.name}
-            style={[
-              styles.tab,
-              active && [styles.tabActive, { backgroundColor: c.bg }],
-            ]}
-            onPress={() => navigateTo(tab.path)}
-            accessibilityRole="tab"
-            accessibilityLabel={tab.label}
-            accessibilityState={{ selected: active }}
-            activeOpacity={0.72}
-          >
-            {active && (
-              <LinearGradient
-                colors={ACTIVE_GRADIENT_COLORS}
-                start={ACTIVE_GRADIENT_START}
-                end={ACTIVE_GRADIENT_END}
-                style={[StyleSheet.absoluteFill, styles.tabGradient]}
-              />
-            )}
-            {tab.name === "profile" ? (
-              <View
-                style={[
-                  styles.profileAvatar,
-                  { borderColor: active ? c.active : c.inactive },
-                ]}
-              >
-                {imageUri ? (
-                  <Image
-                    source={{ uri: imageUri }}
-                    style={styles.profileAvatarImg}
-                  />
-                ) : (
-                  <Text style={[styles.profileAvatarText, { color: active ? c.active : c.inactive }]}>
-                    {initials}
-                  </Text>
-                )}
-              </View>
-            ) : (
-              <tab.Icon
-                size={22}
-                color={color}
-                strokeWidth={active ? 2.3 : 1.7}
-              />
-            )}
-            <Text
+          return (
+            <TouchableOpacity
+              key={tab.name}
               style={[
-                styles.label,
-                {
-                  color: active ? c.activeLabel : c.inactiveLabel,
-                  fontWeight: active ? "700" : "500",
-                },
+                styles.tab,
+                active && [styles.tabActive, { backgroundColor: c.bg }],
               ]}
-              numberOfLines={1}
+              onPress={() => navigateTo(tab.path)}
+              accessibilityRole="tab"
+              accessibilityLabel={tab.label}
+              accessibilityState={{ selected: active }}
+              activeOpacity={0.72}
             >
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
+              {active && (
+                <LinearGradient
+                  colors={ACTIVE_GRADIENT_COLORS}
+                  start={ACTIVE_GRADIENT_START}
+                  end={ACTIVE_GRADIENT_END}
+                  style={[StyleSheet.absoluteFill, styles.tabGradient]}
+                />
+              )}
+              {tab.name === "profile" ? (
+                <View
+                  style={[
+                    styles.profileAvatar,
+                    { borderColor: active ? c.active : c.inactive },
+                  ]}
+                >
+                  {imageUri ? (
+                    <Image
+                      source={{ uri: imageUri }}
+                      style={styles.profileAvatarImg}
+                    />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.profileAvatarText,
+                        { color: active ? c.active : c.inactive },
+                      ]}
+                    >
+                      {initials}
+                    </Text>
+                  )}
+                </View>
+              ) : (
+                <TabIcon size={22} color={color} />
+              )}
+              <Text
+                style={[
+                  styles.label,
+                  {
+                    color: active ? c.activeLabel : c.inactiveLabel,
+                    fontWeight: active ? "700" : "500",
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </Animated.View>
   );

@@ -1,15 +1,6 @@
-import { usePathname } from 'expo-router';
-import {
-  ChevronDown,
-  Coins,
-  DollarSign,
-  FileX,
-  Home,
-  Receipt,
-  Users,
-  X,
-} from 'lucide-react-native';
-import React, { useEffect, useState } from 'react';
+import { usePathname } from "expo-router";
+import { ChevronDown, X } from "lucide-react-native";
+import React, { useEffect, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -19,17 +10,32 @@ import {
   useColorScheme,
   useWindowDimensions,
   View,
-} from 'react-native';
+} from "react-native";
 import Animated, {
   Easing,
   interpolate,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
-} from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  DisbursementActiveIcon,
+  DisbursementIcon,
+  DocCancelActiveIcon,
+  DocCancelIcon,
+  HomeActiveIcon,
+  HomeIcon,
+  McprActiveIcon,
+  McprIcon,
+  NavIconProps,
+  PaymentActiveIcon,
+  PaymentIcon,
+  PlanMgmtActiveIcon,
+  PlanMgmtIcon,
+} from "./navIcons";
 
-import { useNav } from '@/context/nav-context';
+import { useNav } from "@/context/nav-context";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -39,65 +45,65 @@ const SUB_ROW_H = 44;
 
 const C = {
   light: {
-    overlay: 'rgba(0,0,0,0.46)',
-    drawer: '#ffffff',
-    divider: '#f3f4f6',
+    overlay: "rgba(0,0,0,0.46)",
+    drawer: "#ffffff",
+    divider: "#f3f4f6",
     // header
-    headerBg: '#022c22',
-    headerTitle: '#ffffff',
-    headerSub: '#6ee7b7',
-    closeBg: 'rgba(255,255,255,0.12)',
-    avatarBg: '#059669',
-    avatarText: '#ffffff',
-    avatarRing: 'rgba(110,231,183,0.4)',
+    headerBg: "#022c22",
+    headerTitle: "#ffffff",
+    headerSub: "#6ee7b7",
+    closeBg: "rgba(255,255,255,0.12)",
+    avatarBg: "#059669",
+    avatarText: "#ffffff",
+    avatarRing: "rgba(110,231,183,0.4)",
     // section label
-    sectionLabel: '#9ca3af',
+    sectionLabel: "#9ca3af",
     // direct nav item
-    itemText: '#374151',
-    itemIcon: '#059669',
+    itemText: "#374151",
+    itemIcon: "#059669",
     // active leaf item (no sub-items)
-    activeItemBg: '#059669',
-    activeItemText: '#ffffff',
-    activeItemIcon: '#ffffff',
+    activeItemBg: "#059669",
+    activeItemText: "#ffffff",
+    activeItemIcon: "#ffffff",
     // parent item when expanded / has active sub-item
-    expandedItemBg: '#ecfdf5',
-    expandedItemText: '#022c22',
-    expandedItemIcon: '#059669',
-    expandedBorderLeft: '#059669',
+    expandedItemBg: "#ecfdf5",
+    expandedItemText: "#022c22",
+    expandedItemIcon: "#059669",
+    expandedBorderLeft: "#059669",
     // chevron
-    chevron: '#9ca3af',
+    chevron: "#9ca3af",
     // sub-items
-    subSeparator: '#059669',
-    subText: '#6b7280',
-    subActiveBg: '#059669',
-    subActiveText: '#ffffff',
+    subSeparator: "#059669",
+    subText: "#6b7280",
+    subActiveBg: "#059669",
+    subActiveText: "#ffffff",
   },
   dark: {
-    overlay: 'rgba(0,0,0,0.68)',
-    drawer: '#0d1f1a',
-    divider: '#1f2937',
-    headerBg: '#011a14',
-    headerTitle: '#f0fdf4',
-    headerSub: '#34d399',
-    closeBg: 'rgba(255,255,255,0.08)',
-    avatarBg: '#059669',
-    avatarText: '#ffffff',
-    avatarRing: 'rgba(52,211,153,0.3)',
-    sectionLabel: '#6b7280',
-    itemText: '#d1fae5',
-    itemIcon: '#34d399',
-    activeItemBg: '#064e3b',
-    activeItemText: '#6ee7b7',
-    activeItemIcon: '#34d399',
-    expandedItemBg: '#0a2018',
-    expandedItemText: '#6ee7b7',
-    expandedItemIcon: '#34d399',
-    expandedBorderLeft: '#34d399',
-    chevron: '#6b7280',
-    subSeparator: '#34d399',
-    subText: '#9ca3af',
-    subActiveBg: '#064e3b',
-    subActiveText: '#6ee7b7',
+    overlay: "rgba(0,0,0,0.68)",
+    drawer: "#0d1f1a",
+    divider: "#1f2937",
+    headerBg: "#011a14",
+    headerTitle: "#f0fdf4",
+    headerSub: "#34d399",
+    closeBg: "rgba(255,255,255,0.08)",
+    avatarBg: "#059669",
+    avatarText: "#ffffff",
+    avatarRing: "rgba(52,211,153,0.3)",
+    sectionLabel: "#6b7280",
+    itemText: "#d1fae5",
+    itemIcon: "#34d399",
+    activeItemBg: "#064e3b",
+    activeItemText: "#6ee7b7",
+    activeItemIcon: "#34d399",
+    expandedItemBg: "#0a2018",
+    expandedItemText: "#6ee7b7",
+    expandedItemIcon: "#34d399",
+    expandedBorderLeft: "#34d399",
+    chevron: "#6b7280",
+    subSeparator: "#34d399",
+    subText: "#9ca3af",
+    subActiveBg: "#064e3b",
+    subActiveText: "#6ee7b7",
   },
 };
 
@@ -108,57 +114,73 @@ type NavItemDef = {
   name: string;
   path?: string;
   label: string;
-  Icon: React.FC<{ size: number; color: string; strokeWidth?: number }>;
+  icon: React.ComponentType<NavIconProps>;
+  activeIcon: React.ComponentType<NavIconProps>;
   subItems?: SubItem[];
 };
 
 const ITEMS: NavItemDef[] = [
   {
-    name: 'home',
-    path: '/',
-    label: 'Home',
-    Icon: Home,
+    name: "home",
+    path: "/",
+    label: "Home",
+    icon: HomeIcon,
+    activeIcon: HomeActiveIcon,
   },
   {
-    name: 'mcpr',
-    path: '/mcpr',
-    label: 'View MCPR',
-    Icon: Receipt,
+    name: "mcpr",
+    path: "/mcpr",
+    label: "View MCPR",
+    icon: McprIcon,
+    activeIcon: McprActiveIcon,
   },
   {
-    name: 'payment',
-    label: 'Payment',
-    Icon: DollarSign,
+    name: "payment",
+    label: "Payment",
+    icon: PaymentIcon,
+    activeIcon: PaymentActiveIcon,
     subItems: [
-      { label: 'Encode Payment',                path: '/payment/encode-payment' },
-      { label: 'View DRS',                       path: '/payment/view-drs' },
-      { label: 'Encode Validated Deposit Slip',  path: '/payment/encode-validated-deposit' },
-      { label: 'View Encoded Deposit Slip',      path: '/payment/view-validated-deposit' },
-      { label: 'Request Credit Memo',            path: '/payment/credit-memo' },
+      { label: "Encode Payment", path: "/payment/encode-payment" },
+      { label: "View DRS", path: "/payment/view-drs" },
+      {
+        label: "Encode Validated Deposit Slip",
+        path: "/payment/encode-validated-deposit",
+      },
+      {
+        label: "View Encoded Deposit Slip",
+        path: "/payment/view-validated-deposit",
+      },
+      { label: "Request Credit Memo", path: "/payment/credit-memo" },
     ],
   },
   {
-    name: 'comte',
-    path: '/comte',
-    label: 'Disbursement',
-    Icon: Coins,
+    name: "comte",
+    path: "/comte",
+    label: "Disbursement",
+    icon: DisbursementIcon,
+    activeIcon: DisbursementActiveIcon,
   },
   {
-    name: 'plan-management',
-    label: 'Plan Management',
-    Icon: Users,
+    name: "plan-management",
+    label: "Plan Management",
+    icon: PlanMgmtIcon,
+    activeIcon: PlanMgmtActiveIcon,
     subItems: [
-      { label: 'Add New Sale',       path: '/plan-management/new' },
-      { label: 'Planholder Profile', path: '/plan-management/planholder' },
-      { label: 'Pre-filled LPA',     path: '/plan-management/lpa' },
-      { label: 'Change of Mode',     path: '/plan-management/change-of-mode' },
+      { label: "Add New Sale", path: "/plan-management/new" },
+      {
+        label: "Planholder Profile",
+        path: "/planholderProfile",
+      },
+      { label: "Pre-filled LPA", path: "/plan-management/lpa" },
+      { label: "Change of Mode", path: "/plan-management/change-of-mode" },
     ],
   },
   {
-    name: 'dc',
-    path: '/dc',
-    label: 'Document Cancellation',
-    Icon: FileX,
+    name: "dc",
+    path: "/dc",
+    label: "Document Cancellation",
+    icon: DocCancelIcon,
+    activeIcon: DocCancelActiveIcon,
   },
 ];
 
@@ -168,7 +190,7 @@ interface NavItemRowProps {
   item: NavItemDef;
   pathname: string;
   navigateTo: (path: string) => void;
-  c: (typeof C)['light'];
+  c: (typeof C)["light"];
 }
 
 function NavItemRow({ item, pathname, navigateTo, c }: NavItemRowProps) {
@@ -179,12 +201,13 @@ function NavItemRow({ item, pathname, navigateTo, c }: NavItemRowProps) {
   const isLeafActive =
     !hasSubItems &&
     (item.path === pathname ||
-      (item.path === '/' && (pathname === '/' || pathname === '/index')));
+      (item.path === "/" && (pathname === "/" || pathname === "/index")));
   const hasActiveSubItem =
     hasSubItems &&
     (item.subItems?.some(
-      (s) => s.path === pathname || pathname.startsWith(s.path + '/'),
-    ) ?? false);
+      (s) => s.path === pathname || pathname.startsWith(s.path + "/"),
+    ) ??
+      false);
 
   const [expanded, setExpanded] = useState(hasActiveSubItem);
 
@@ -204,7 +227,7 @@ function NavItemRow({ item, pathname, navigateTo, c }: NavItemRowProps) {
 
   const subContainerStyle = useAnimatedStyle(() => ({
     height: subH.value,
-    overflow: 'hidden',
+    overflow: "hidden",
   }));
 
   const chevronStyle = useAnimatedStyle(() => ({
@@ -220,7 +243,7 @@ function NavItemRow({ item, pathname, navigateTo, c }: NavItemRowProps) {
     ? c.activeItemBg
     : showExpandedState
       ? c.expandedItemBg
-      : 'transparent';
+      : "transparent";
   const rowText = isLeafActive
     ? c.activeItemText
     : showExpandedState
@@ -232,6 +255,8 @@ function NavItemRow({ item, pathname, navigateTo, c }: NavItemRowProps) {
       ? c.expandedItemIcon
       : c.itemIcon;
   const showLeftBorder = isLeafActive || hasActiveSubItem;
+  const NavIcon =
+    isLeafActive || hasActiveSubItem ? item.activeIcon : item.icon;
 
   return (
     <View>
@@ -254,18 +279,17 @@ function NavItemRow({ item, pathname, navigateTo, c }: NavItemRowProps) {
       >
         {/* Icon */}
         <View style={styles.navIconWrap}>
-          <item.Icon
-            size={20}
-            color={rowIcon}
-            strokeWidth={isLeafActive ? 2.3 : 1.9}
-          />
+          <NavIcon size={20} color={rowIcon} />
         </View>
 
         {/* Label */}
         <Text
           style={[
             styles.navItemLabel,
-            { color: rowText, fontWeight: isLeafActive || showExpandedState ? '600' : '400' },
+            {
+              color: rowText,
+              fontWeight: isLeafActive || showExpandedState ? "600" : "400",
+            },
           ]}
         >
           {item.label}
@@ -284,7 +308,12 @@ function NavItemRow({ item, pathname, navigateTo, c }: NavItemRowProps) {
         <Animated.View style={subContainerStyle}>
           <View style={styles.subWrapper}>
             {/* Vertical separator — mirrors web's <Separator orientation="vertical" /> */}
-            <View style={[styles.subSeparatorLine, { backgroundColor: c.subSeparator }]} />
+            <View
+              style={[
+                styles.subSeparatorLine,
+                { backgroundColor: c.subSeparator },
+              ]}
+            />
 
             {/* Sub-item rows */}
             <View style={{ flex: 1 }}>
@@ -295,7 +324,10 @@ function NavItemRow({ item, pathname, navigateTo, c }: NavItemRowProps) {
                     key={sub.label}
                     style={[
                       styles.subItem,
-                      isSubActive && { backgroundColor: c.subActiveBg, borderRadius: 8 },
+                      isSubActive && {
+                        backgroundColor: c.subActiveBg,
+                        borderRadius: 8,
+                      },
                     ]}
                     onPress={() => navigateTo(sub.path)}
                     accessibilityRole="menuitem"
@@ -307,7 +339,7 @@ function NavItemRow({ item, pathname, navigateTo, c }: NavItemRowProps) {
                         styles.subItemText,
                         {
                           color: isSubActive ? c.subActiveText : c.subText,
-                          fontWeight: isSubActive ? '600' : '400',
+                          fontWeight: isSubActive ? "600" : "400",
                         },
                       ]}
                     >
@@ -327,9 +359,9 @@ function NavItemRow({ item, pathname, navigateTo, c }: NavItemRowProps) {
 // ─── SidebarDrawer ────────────────────────────────────────────────────────────
 
 export function SidebarDrawer({
-  userName = 'Jerome Jardio',
-  userRole = 'Branch Cashier/Encoder',
-  userInitials = 'JR',
+  userName = "Jerome Jardio",
+  userRole = "Branch Cashier/Encoder",
+  userInitials = "JR",
 }: {
   userName?: string;
   userRole?: string;
@@ -339,7 +371,7 @@ export function SidebarDrawer({
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
-  const c = C[scheme === 'dark' ? 'dark' : 'light'];
+  const c = C[scheme === "dark" ? "dark" : "light"];
   const { width } = useWindowDimensions();
   const drawerWidth = Math.min(Math.round(width * 0.82), 320);
 
@@ -357,7 +389,9 @@ export function SidebarDrawer({
 
   const drawerStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateX: interpolate(progress.value, [0, 1], [-drawerWidth - 10, 0]) },
+      {
+        translateX: interpolate(progress.value, [0, 1], [-drawerWidth - 10, 0]),
+      },
     ],
   }));
 
@@ -365,7 +399,7 @@ export function SidebarDrawer({
     <>
       {/* ── Dimming overlay ── */}
       <Animated.View
-        pointerEvents={drawerOpen ? 'auto' : 'none'}
+        pointerEvents={drawerOpen ? "auto" : "none"}
         style={[
           StyleSheet.absoluteFill,
           { backgroundColor: c.overlay, zIndex: 200 },
@@ -381,7 +415,7 @@ export function SidebarDrawer({
 
       {/* ── Drawer panel ── */}
       <Animated.View
-        pointerEvents={drawerOpen ? 'auto' : 'none'}
+        pointerEvents={drawerOpen ? "auto" : "none"}
         style={[
           styles.drawer,
           { backgroundColor: c.drawer, width: drawerWidth },
@@ -400,7 +434,9 @@ export function SidebarDrawer({
             <View style={styles.profileRow}>
               <View style={[styles.avatarRing, { borderColor: c.avatarRing }]}>
                 <View style={[styles.avatar, { backgroundColor: c.avatarBg }]}>
-                  <Text style={[styles.avatarInitials, { color: c.avatarText }]}>
+                  <Text
+                    style={[styles.avatarInitials, { color: c.avatarText }]}
+                  >
                     {userInitials}
                   </Text>
                 </View>
@@ -484,13 +520,13 @@ export function SidebarDrawer({
 const styles = StyleSheet.create({
   // ── Drawer panel ──────────────────────────────────────────────────────
   drawer: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     bottom: 0,
     left: 0,
     zIndex: 201,
-    flexDirection: 'column',
-    shadowColor: '#000',
+    flexDirection: "column",
+    shadowColor: "#000",
     shadowOffset: { width: 4, height: 0 },
     shadowOpacity: 0.18,
     shadowRadius: 16,
@@ -503,15 +539,15 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
   },
   headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginTop: 10,
     gap: 8,
   },
   profileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
     flex: 1,
   },
@@ -520,20 +556,20 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
     borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     flexShrink: 0,
   },
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   avatarInitials: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   userInfo: {
     flex: 1,
@@ -541,19 +577,19 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
     lineHeight: 18,
   },
   userRole: {
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   closeBtn: {
     width: 34,
     height: 34,
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     flexShrink: 0,
   },
 
@@ -568,28 +604,28 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 1.4,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     paddingHorizontal: 10,
     marginBottom: 8,
   },
 
   // ── Nav item parent row ─────────────────────────────────────────────────
   navItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
     paddingVertical: 13,
     paddingHorizontal: 10,
     borderRadius: 10,
     borderLeftWidth: 3,
-    borderLeftColor: 'transparent',
+    borderLeftColor: "transparent",
     marginBottom: 2,
   },
   navIconWrap: {
     width: 24,
-    alignItems: 'center',
+    alignItems: "center",
   },
   navItemLabel: {
     flex: 1,
@@ -599,7 +635,7 @@ const styles = StyleSheet.create({
 
   // ── Sub-items ──────────────────────────────────────────────────────────
   subWrapper: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginLeft: 20,
     marginBottom: 4,
     gap: 10,
@@ -613,7 +649,7 @@ const styles = StyleSheet.create({
   },
   subItem: {
     height: SUB_ROW_H,
-    justifyContent: 'center',
+    justifyContent: "center",
     paddingHorizontal: 12,
   },
   subItemText: {
@@ -629,7 +665,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   footerVersion: {
     fontSize: 10,
