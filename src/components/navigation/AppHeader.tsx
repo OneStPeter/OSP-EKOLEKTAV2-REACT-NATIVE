@@ -7,6 +7,7 @@ import {
   Text,
   TouchableOpacity,
   useColorScheme,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -55,6 +56,8 @@ export function AppHeader({
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
   const c = C[scheme === "dark" ? "dark" : "light"];
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
 
   const badgeCount = Math.min(notificationCount, 99);
 
@@ -69,7 +72,7 @@ export function AppHeader({
         },
       ]}
     >
-      <View style={styles.row}>
+      <View style={[styles.row, isTablet && styles.rowTablet]}>
         {/* ── Left: burger + brand ── */}
         <View style={styles.left}>
           <TouchableOpacity
@@ -171,6 +174,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 12,
+  },
+  rowTablet: {
+    maxWidth: 1024,
+    alignSelf: "center",
+    width: "100%",
+    paddingHorizontal: 24,
   },
 
   // ── Left cluster ───────────────────────────────────

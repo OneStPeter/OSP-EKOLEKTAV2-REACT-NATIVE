@@ -9,6 +9,7 @@ import {
   Text,
   TouchableOpacity,
   useColorScheme,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
@@ -73,6 +74,8 @@ export function BottomNavBar() {
   const scheme = useColorScheme();
   const c = C[scheme === "dark" ? "dark" : "light"];
   const { imageUri, initials } = useUserProfile();
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
 
   const bottomPad = Math.max(insets.bottom, 8);
   const totalHeight = BOTTOM_NAV_HEIGHT + bottomPad;
@@ -95,6 +98,7 @@ export function BottomNavBar() {
         animatedStyle,
       ]}
     >
+      <View style={[styles.tabRow, isTablet && styles.tabRowTablet]}>
       {TABS.map((tab) => {
         const active = isTabActive(tab.path, pathname);
         const color = active ? c.active : c.inactive;
@@ -160,6 +164,7 @@ export function BottomNavBar() {
           </TouchableOpacity>
         );
       })}
+      </View>
     </Animated.View>
   );
 }
@@ -170,10 +175,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    paddingTop: 6,
-    paddingHorizontal: 4,
     borderTopWidth: StyleSheet.hairlineWidth,
     ...Platform.select({
       ios: {
@@ -184,6 +185,18 @@ const styles = StyleSheet.create({
       android: { elevation: 5 },
     }),
     zIndex: 100,
+  },
+  tabRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingTop: 6,
+    paddingHorizontal: 4,
+    width: "100%",
+  },
+  tabRowTablet: {
+    maxWidth: 680,
+    alignSelf: "center",
+    paddingHorizontal: 8,
   },
   tab: {
     flex: 1,

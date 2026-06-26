@@ -14,13 +14,13 @@ import {
 } from "lucide-react-native";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Dimensions,
   NativeScrollEvent,
   NativeSyntheticEvent,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Animated, {
@@ -37,8 +37,6 @@ import Svg, { Circle } from "react-native-svg";
 
 import { BOTTOM_NAV_HEIGHT } from "@/components/navigation/BottomNavBar";
 import { useScrollNav } from "@/hooks/use-scroll-nav";
-
-const { width: SW } = Dimensions.get("window");
 
 // ── Design tokens ──────────────────────────────────────────────────────────
 const C = {
@@ -595,16 +593,27 @@ function BarChart({ data }: { data: { month: string; value: number }[] }) {
 
 // ── Main screen ────────────────────────────────────────────────────────────
 export default function HomeScreen() {
+  const { width: SW } = useWindowDimensions();
+  const isTablet = SW >= 768;
+  const PADDING_H = isTablet ? 24 : 16;
+  const TILE_GAP = 12;
+  const CARD_W = SW - PADDING_H * 2;
+  const SNAP_W = CARD_W + TILE_GAP;
+  const CELL_W = (CARD_W - TILE_GAP) / 2;
+
   const scrollHandler = useScrollNav();
   const insets = useSafeAreaInsets();
 
-  const TILE_GAP = 12;
-  const CARD_W = SW - 32;
-  const SNAP_W = CARD_W + TILE_GAP;
   const carouselRef = useRef<ScrollView>(null);
   const [activeSlide, setActiveSlide] = useState(0);
   const [year, setYear] = useState("2026");
   const chartData = MONTHLY_SALES[year];
+
+  // Reset carousel position when screen width changes (orientation / foldable)
+  useEffect(() => {
+    carouselRef.current?.scrollTo({ x: 0, animated: false });
+    setActiveSlide(0);
+  }, [SW]);
 
   function onCarouselScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
     const idx = Math.round(e.nativeEvent.contentOffset.x / SNAP_W);
@@ -632,7 +641,7 @@ export default function HomeScreen() {
       style={{ backgroundColor: C.bg }}
       contentContainerStyle={[
         s.content,
-        { paddingBottom: BOTTOM_NAV_HEIGHT + insets.bottom + 24 },
+        { paddingBottom: BOTTOM_NAV_HEIGHT + insets.bottom + 24, paddingHorizontal: PADDING_H },
       ]}
       showsVerticalScrollIndicator={false}
     >
@@ -641,52 +650,66 @@ export default function HomeScreen() {
         title="Account Overview"
         subtitle="Month-over-month account metrics"
       />
-      <ScrollView
-        ref={carouselRef}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={onCarouselScroll}
-        decelerationRate="fast"
-        snapToInterval={SNAP_W}
-        snapToAlignment="start"
-        contentContainerStyle={{ paddingRight: TILE_GAP }}
-      >
-        {TILES.map((tile, i) => (
-          <View
-            key={i}
-            style={{
-              width: CARD_W,
-              marginRight: i < TILES.length - 1 ? TILE_GAP : 0,
-            }}
-          >
-            <Tile tile={tile} />
-          </View>
-        ))}
-      </ScrollView>
-      {/* Dots + arrows */}
-      <View style={s.dotsRow}>
-        <TouchableOpacity
-          onPress={() => scrollTo(activeSlide - 1)}
-          style={s.arrowBtn}
-          activeOpacity={0.7}
-        >
-          <ChevronLeft size={16} color={C.primary} strokeWidth={2.5} />
-        </TouchableOpacity>
-
-        <View style={s.dots}>
-          {TILES.map((_, i) => (
-            <View key={i} style={[s.dot, activeSlide === i && s.dotActive]} />
+      {isTablet ? (
+        // Tablets: 2-column static grid
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: TILE_GAP, marginBottom: 4 }}>
+          {TILES.map((tile, i) => (
+            <View key={i} style={{ width: CELL_W }}>
+              <Tile tile={tile} />
+            </View>
           ))}
         </View>
+      ) : (
+        // Phones: swipeable carousel with dots
+        <>
+          <ScrollView
+            ref={carouselRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={onCarouselScroll}
+            decelerationRate="fast"
+            snapToInterval={SNAP_W}
+            snapToAlignment="start"
+            contentContainerStyle={{ paddingRight: TILE_GAP }}
+          >
+            {TILES.map((tile, i) => (
+              <View
+                key={i}
+                style={{
+                  width: CARD_W,
+                  marginRight: i < TILES.length - 1 ? TILE_GAP : 0,
+                }}
+              >
+                <Tile tile={tile} />
+              </View>
+            ))}
+          </ScrollView>
+          {/* Dots + arrows */}
+          <View style={s.dotsRow}>
+            <TouchableOpacity
+              onPress={() => scrollTo(activeSlide - 1)}
+              style={s.arrowBtn}
+              activeOpacity={0.7}
+            >
+              <ChevronLeft size={16} color={C.primary} strokeWidth={2.5} />
+            </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => scrollTo(activeSlide + 1)}
-          style={s.arrowBtn}
-          activeOpacity={0.7}
-        >
-          <ChevronRight size={16} color={C.primary} strokeWidth={2.5} />
-        </TouchableOpacity>
-      </View>
+            <View style={s.dots}>
+              {TILES.map((_, i) => (
+                <View key={i} style={[s.dot, activeSlide === i && s.dotActive]} />
+              ))}
+            </View>
+
+            <TouchableOpacity
+              onPress={() => scrollTo(activeSlide + 1)}
+              style={s.arrowBtn}
+              activeOpacity={0.7}
+            >
+              <ChevronRight size={16} color={C.primary} strokeWidth={2.5} />
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
 
       {/* ── Efficiency ────────────────────────────────── */}
       <SectionLabel
@@ -764,7 +787,7 @@ export default function HomeScreen() {
               bg: nComAde < 50 ? "#FECACA" : "#D1FAE5",
             },
           ].map((d, i) => (
-            <View key={i} style={s.donutCell}>
+            <View key={i} style={[s.donutCell, isTablet && { width: "25%" }]}>
               <DonutChart
                 percentage={d.pct}
                 color={d.color}
@@ -830,7 +853,6 @@ export default function HomeScreen() {
 // ── Styles ─────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   content: {
-    paddingHorizontal: 16,
     paddingTop: 16,
     gap: 4,
   },

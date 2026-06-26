@@ -17,6 +17,7 @@ import {
   Text,
   TouchableOpacity,
   useColorScheme,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import Animated, {
@@ -32,7 +33,6 @@ import { useNav } from '@/context/nav-context';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const DRAWER_WIDTH = 290;
 const SUB_ROW_H = 44;
 
 // ─── Colour theme ────────────────────────────────────────────────────────────
@@ -340,6 +340,8 @@ export function SidebarDrawer({
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
   const c = C[scheme === 'dark' ? 'dark' : 'light'];
+  const { width } = useWindowDimensions();
+  const drawerWidth = Math.min(Math.round(width * 0.82), 320);
 
   // Drawer slide animation
   const progress = useSharedValue(0);
@@ -355,7 +357,7 @@ export function SidebarDrawer({
 
   const drawerStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateX: interpolate(progress.value, [0, 1], [-DRAWER_WIDTH - 10, 0]) },
+      { translateX: interpolate(progress.value, [0, 1], [-drawerWidth - 10, 0]) },
     ],
   }));
 
@@ -382,7 +384,7 @@ export function SidebarDrawer({
         pointerEvents={drawerOpen ? 'auto' : 'none'}
         style={[
           styles.drawer,
-          { backgroundColor: c.drawer, width: DRAWER_WIDTH },
+          { backgroundColor: c.drawer, width: drawerWidth },
           drawerStyle,
         ]}
       >

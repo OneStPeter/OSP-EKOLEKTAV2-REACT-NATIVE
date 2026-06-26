@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
@@ -90,6 +91,8 @@ interface Props {
 
 export function ChatbotMessenger({ open, onOpenChange }: Props) {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isWide = width >= 600;
 
   return (
     <Modal
@@ -106,7 +109,16 @@ export function ChatbotMessenger({ open, onOpenChange }: Props) {
           activeOpacity={1}
         />
         <View
-          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}
+          style={[
+            styles.sheet,
+            { paddingBottom: Math.max(insets.bottom, 16) },
+            isWide && {
+              width: Math.min(540, width - 48),
+              alignSelf: "center",
+              marginBottom: 40,
+              borderRadius: 24,
+            },
+          ]}
         >
           {/* Drag handle */}
           <View style={styles.handle} />

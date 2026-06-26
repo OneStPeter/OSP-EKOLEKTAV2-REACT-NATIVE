@@ -6,9 +6,11 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
@@ -22,10 +24,11 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 
 // ─── Brand colours ────────────────────────────────────────────────────────────
-const GREEN_DARK = "#022c22";
 const GREEN_MID = "#065f46";
 const GREEN_ACCENT = "#059669";
 const GREEN_TEXT = "#6ee7b7";
+
+const FORM_MAX_WIDTH = 480;
 
 // ─── Divider ─────────────────────────────────────────────────────────────────
 function Divider() {
@@ -75,6 +78,10 @@ function LogoBlock() {
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 export default function LoginScreen() {
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const isSmallScreen = windowHeight < 700;
+  const isTabletPortrait = windowWidth >= 768 && windowHeight > windowWidth;
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -107,6 +114,8 @@ export default function LoginScreen() {
     signIn({ email: email.trim(), password, remember });
   }
 
+  const brandPaddingV = isSmallScreen ? 16 : 32;
+
   return (
     <LinearGradient
       colors={["#022c22", "#064e3b", "#f0fdf4", "#ffffff"]}
@@ -116,181 +125,194 @@ export default function LoginScreen() {
       style={styles.gradient}
     >
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
-        {/* ── Dark green brand header ── */}
-        <Animated.View
-          entering={FadeInDown.duration(500)}
-          style={styles.brandSection}
-        >
-          {/* Decorative dot grid */}
-          <View style={styles.dotGrid} pointerEvents="none" />
-
-          <Animated.View entering={FadeInDown.duration(500).delay(80)}>
-            <LogoBlock />
-          </Animated.View>
-
-          <Animated.View
-            entering={FadeInDown.duration(500).delay(180)}
-            style={styles.brandText}
-          >
-            <Text style={styles.brandTitle}>One St. Peter</Text>
-            <Text style={styles.brandSubtitle}>LIFE PLAN OPERATIONS</Text>
-          </Animated.View>
-        </Animated.View>
-
-        {/* ── White form card ── */}
         <KeyboardAvoidingView
-          style={styles.cardWrapper}
+          style={styles.kav}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <View style={styles.cardInner}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={[
+                styles.scrollContent,
+                isTabletPortrait && { justifyContent: "center" as const },
+              ]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+          >
+            {/* ── Dark green brand header ── */}
             <Animated.View
-              entering={FadeInUp.duration(450).delay(120)}
-              style={styles.card}
+              entering={FadeInDown.duration(500)}
+              style={[
+                styles.brandSection,
+                { paddingTop: brandPaddingV, paddingBottom: brandPaddingV },
+              ]}
             >
-              {/* Card header */}
-              <Animated.View entering={FadeInUp.duration(400).delay(200)}>
-                <Text style={styles.cardTitle}>Welcome back</Text>
-                <Text style={styles.cardSubtitle}>
-                  Sign in to your account to continue
-                </Text>
+              <View style={styles.dotGrid} pointerEvents="none" />
+
+              <Animated.View entering={FadeInDown.duration(500).delay(80)}>
+                <LogoBlock />
               </Animated.View>
 
-              <View style={styles.formGap}>
-                {/* Error banner */}
-                {error ? (
-                  <Animated.View
-                    entering={FadeInUp.duration(300)}
-                    style={styles.errorBanner}
-                  >
-                    <Text style={styles.errorBannerText}>{error}</Text>
-                  </Animated.View>
-                ) : null}
+              <Animated.View
+                entering={FadeInDown.duration(500).delay(180)}
+                style={styles.brandText}
+              >
+                <Text style={styles.brandTitle}>One St. Peter</Text>
+                <Text style={styles.brandSubtitle}>LIFE PLAN OPERATIONS</Text>
+              </Animated.View>
+            </Animated.View>
 
-                {/* Email */}
-                <Animated.View entering={FadeInUp.duration(400).delay(250)}>
-                  <FormInput
-                    label="Email address"
-                    iconName={{
-                      ios: "envelope",
-                      android: "email",
-                      web: "email",
-                    }}
-                    value={email}
-                    onChangeText={(v) => {
-                      setEmail(v);
-                      setFieldErrors((e) => ({ ...e, email: undefined }));
-                    }}
-                    placeholder="you@stpeter.com.ph"
-                    keyboardType="email-address"
-                    textContentType="emailAddress"
-                    autoComplete="email"
-                    error={fieldErrors.email}
-                  />
-                </Animated.View>
-
-                {/* Password */}
-                <Animated.View entering={FadeInUp.duration(400).delay(310)}>
-                  <FormInput
-                    label="Password"
-                    iconName={{ ios: "lock", android: "lock", web: "lock" }}
-                    value={password}
-                    onChangeText={(v) => {
-                      setPassword(v);
-                      setFieldErrors((e) => ({ ...e, password: undefined }));
-                    }}
-                    placeholder="••••••••"
-                    secureTextEntry={!showPassword}
-                    textContentType="password"
-                    autoComplete="current-password"
-                    error={fieldErrors.password}
-                    rightSlot={
-                      <EyeToggle
-                        visible={showPassword}
-                        onToggle={() => setShowPassword((v) => !v)}
-                      />
-                    }
-                  />
-                </Animated.View>
-
-                {/* Remember me + Forgot */}
-                <Animated.View
-                  entering={FadeInUp.duration(400).delay(370)}
-                  style={styles.rememberRow}
-                >
-                  <Checkbox
-                    checked={remember}
-                    onToggle={() => setRemember((v) => !v)}
-                  />
-                  <TouchableOpacity activeOpacity={0.7}>
-                    <Text style={styles.forgotLink}>Forgot password?</Text>
-                  </TouchableOpacity>
-                </Animated.View>
-
-                {/* Sign in button */}
-                <Animated.View entering={FadeInUp.duration(400).delay(420)}>
-                  <TouchableOpacity
-                    style={[
-                      styles.signInBtn,
-                      loading && styles.signInBtnDisabled,
-                    ]}
-                    onPress={handleSubmit}
-                    disabled={loading}
-                    activeOpacity={0.88}
-                  >
-                    {loading ? (
-                      <ActivityIndicator color="#ffffff" size="small" />
-                    ) : (
-                      <View style={styles.signInBtnLabel}>
-                        <Text style={styles.signInBtnText}>Sign in</Text>
-                        <ArrowRight size={16} color="#ffffff" />
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                </Animated.View>
-
-                {/* Divider */}
-                <Animated.View entering={FadeInUp.duration(400).delay(470)}>
-                  <Divider />
-                </Animated.View>
-
-                {/* Social buttons */}
-                <Animated.View
-                  entering={FadeInUp.duration(400).delay(510)}
-                  style={styles.socialRow}
-                >
-                  {(["google", "facebook", "x"] as SocialProvider[]).map(
-                    (p) => (
-                      <SocialButton
-                        key={p}
-                        provider={p}
-                        loading={socialLoading === p}
-                        disabled={!!socialLoading}
-                        onPress={() => signInWithSocial(p)}
-                      />
-                    ),
-                  )}
-                </Animated.View>
-
-                {/* Footer note */}
-                <Animated.View entering={FadeInUp.duration(400).delay(550)}>
-                  <Text style={styles.footerNote}>
-                    This system is for authorized St. Peter personnel only.
-                    {"\n"}
-                    Unauthorized access is prohibited.
+            {/* ── White form card ── */}
+            <View style={styles.cardOuter}>
+              <Animated.View
+                entering={FadeInUp.duration(450).delay(120)}
+                style={styles.card}
+              >
+                {/* Card header */}
+                <Animated.View entering={FadeInUp.duration(400).delay(200)}>
+                  <Text style={styles.cardTitle}>Welcome back</Text>
+                  <Text style={styles.cardSubtitle}>
+                    Sign in to your account to continue
                   </Text>
                 </Animated.View>
-              </View>
-            </Animated.View>
-          </View>
-        </KeyboardAvoidingView>
 
-        {/* ── Copyright — outside the white card, on green background ── */}
-        <Animated.View
-          entering={FadeInUp.duration(400).delay(580)}
-          style={styles.copyrightArea}
-        >
-          <Text style={styles.copyright}>© 2026 St. Peter Life Plans</Text>
-        </Animated.View>
+                <View style={styles.formGap}>
+                  {/* Error banner */}
+                  {error ? (
+                    <Animated.View
+                      entering={FadeInUp.duration(300)}
+                      style={styles.errorBanner}
+                    >
+                      <Text style={styles.errorBannerText}>{error}</Text>
+                    </Animated.View>
+                  ) : null}
+
+                  {/* Email */}
+                  <Animated.View entering={FadeInUp.duration(400).delay(250)}>
+                    <FormInput
+                      label="Email address"
+                      iconName={{
+                        ios: "envelope",
+                        android: "email",
+                        web: "email",
+                      }}
+                      value={email}
+                      onChangeText={(v) => {
+                        setEmail(v);
+                        setFieldErrors((e) => ({ ...e, email: undefined }));
+                      }}
+                      placeholder="you@stpeter.com.ph"
+                      keyboardType="email-address"
+                      textContentType="emailAddress"
+                      autoComplete="email"
+                      error={fieldErrors.email}
+                    />
+                  </Animated.View>
+
+                  {/* Password */}
+                  <Animated.View entering={FadeInUp.duration(400).delay(310)}>
+                    <FormInput
+                      label="Password"
+                      iconName={{ ios: "lock", android: "lock", web: "lock" }}
+                      value={password}
+                      onChangeText={(v) => {
+                        setPassword(v);
+                        setFieldErrors((e) => ({ ...e, password: undefined }));
+                      }}
+                      placeholder="••••••••"
+                      secureTextEntry={!showPassword}
+                      textContentType="password"
+                      autoComplete="current-password"
+                      error={fieldErrors.password}
+                      rightSlot={
+                        <EyeToggle
+                          visible={showPassword}
+                          onToggle={() => setShowPassword((v) => !v)}
+                        />
+                      }
+                    />
+                  </Animated.View>
+
+                  {/* Remember me + Forgot */}
+                  <Animated.View
+                    entering={FadeInUp.duration(400).delay(370)}
+                    style={styles.rememberRow}
+                  >
+                    <Checkbox
+                      checked={remember}
+                      onToggle={() => setRemember((v) => !v)}
+                    />
+                    <TouchableOpacity activeOpacity={0.7}>
+                      <Text style={styles.forgotLink}>Forgot password?</Text>
+                    </TouchableOpacity>
+                  </Animated.View>
+
+                  {/* Sign in button */}
+                  <Animated.View entering={FadeInUp.duration(400).delay(420)}>
+                    <TouchableOpacity
+                      style={[
+                        styles.signInBtn,
+                        loading && styles.signInBtnDisabled,
+                      ]}
+                      onPress={handleSubmit}
+                      disabled={loading}
+                      activeOpacity={0.88}
+                    >
+                      {loading ? (
+                        <ActivityIndicator color="#ffffff" size="small" />
+                      ) : (
+                        <View style={styles.signInBtnLabel}>
+                          <Text style={styles.signInBtnText}>Sign in</Text>
+                          <ArrowRight size={16} color="#ffffff" />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  </Animated.View>
+
+                  {/* Divider */}
+                  <Animated.View entering={FadeInUp.duration(400).delay(470)}>
+                    <Divider />
+                  </Animated.View>
+
+                  {/* Social buttons */}
+                  <Animated.View
+                    entering={FadeInUp.duration(400).delay(510)}
+                    style={styles.socialRow}
+                  >
+                    {(["google", "facebook", "x"] as SocialProvider[]).map(
+                      (p) => (
+                        <SocialButton
+                          key={p}
+                          provider={p}
+                          loading={socialLoading === p}
+                          disabled={!!socialLoading}
+                          onPress={() => signInWithSocial(p)}
+                        />
+                      ),
+                    )}
+                  </Animated.View>
+
+                  {/* Footer note */}
+                  <Animated.View entering={FadeInUp.duration(400).delay(550)}>
+                    <Text style={styles.footerNote}>
+                      This system is for authorized St. Peter personnel only.
+                      {"\n"}
+                      Unauthorized access is prohibited.
+                    </Text>
+                  </Animated.View>
+                </View>
+              </Animated.View>
+            </View>
+
+            {/* ── Copyright ── */}
+            <Animated.View
+              entering={FadeInUp.duration(400).delay(580)}
+              style={styles.copyrightArea}
+            >
+              <Text style={styles.copyright}>© 2026 St. Peter Life Plans</Text>
+            </Animated.View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -304,12 +326,20 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
   },
+  kav: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 8,
+  },
 
   // ── Brand header ──
   brandSection: {
     alignItems: "center",
-    paddingTop: 32,
-    paddingBottom: 36,
     paddingHorizontal: 24,
     gap: 16,
     overflow: "hidden",
@@ -336,12 +366,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
   },
-  logoAbbr: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#ffffff",
-    letterSpacing: 1,
-  },
   brandText: {
     alignItems: "center",
     gap: 6,
@@ -359,28 +383,24 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
     textTransform: "uppercase",
   },
-  brandDivider: {
-    width: 48,
-    height: 1,
-    backgroundColor: "rgba(16,185,129,0.6)",
-    marginVertical: 4,
-  },
-  brandDesc: {
-    fontSize: 12,
-    color: "rgba(236,253,245,0.65)",
-    textAlign: "center",
-    lineHeight: 18,
-    maxWidth: 260,
+
+  // ── Card outer — centres the card on wide screens ──
+  cardOuter: {
+    paddingHorizontal: 16,
+    alignItems: "center",
   },
 
-  // ── Card wrapper ──
-  cardWrapper: {
-    flex: 1,
+  // ── Form card ──
+  card: {
+    width: "100%",
+    maxWidth: FORM_MAX_WIDTH,
     backgroundColor: "#ffffff",
     borderRadius: 32,
     overflow: "hidden",
-    marginHorizontal: 16,
-    marginBottom: 8,
+    paddingHorizontal: 28,
+    paddingTop: 32,
+    paddingBottom: 32,
+    gap: 20,
     borderWidth: 1,
     borderColor: "rgba(243,244,246,0.8)",
     shadowColor: "#4b4b4b",
@@ -389,21 +409,8 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     elevation: 6,
   },
-  cardInner: {
-    flex: 1,
-  },
 
-  // ── Form card ──
-  card: {
-    flex: 1,
-    paddingHorizontal: 32,
-    paddingTop: 36,
-    paddingBottom: 36,
-    gap: 20,
-    justifyContent: "space-between",
-  },
-
-  // ── Copyright area (below white card, on green bg) ──
+  // ── Copyright area ──
   copyrightArea: {
     paddingVertical: 14,
     alignItems: "center",
@@ -529,6 +536,7 @@ const styles = StyleSheet.create({
   socialRow: {
     flexDirection: "row",
     gap: 10,
+    justifyContent: "center",
   },
 
   // ── Footer ──

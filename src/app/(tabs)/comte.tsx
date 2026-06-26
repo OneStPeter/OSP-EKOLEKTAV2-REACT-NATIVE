@@ -12,6 +12,7 @@ import {
   Text,
   TouchableOpacity,
   useColorScheme,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -50,6 +51,7 @@ export default function ComTeScreen() {
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
   const c = C[scheme === 'dark' ? 'dark' : 'light'];
+  const { width } = useWindowDimensions();
 
   return (
     <Animated.ScrollView
@@ -58,7 +60,7 @@ export default function ComTeScreen() {
       style={{ backgroundColor: c.bg }}
       contentContainerStyle={[
         styles.content,
-        { paddingBottom: BOTTOM_NAV_HEIGHT + insets.bottom + 16 },
+        { paddingBottom: BOTTOM_NAV_HEIGHT + insets.bottom + 16, paddingHorizontal: width >= 768 ? 24 : 16 },
       ]}
       showsVerticalScrollIndicator={false}
     >
