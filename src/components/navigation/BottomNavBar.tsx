@@ -1,6 +1,8 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { usePathname } from "expo-router";
 import React from "react";
+
+const ProfileImage = require("../../../assets/images/Profile.png");
 import {
   Image,
   Platform,
@@ -29,6 +31,7 @@ import {
 
 import { useNav } from "@/context/nav-context";
 import { useUserProfile } from "@/context/user-profile-context";
+import { BRAND_COLORS } from "@/constants/colors";
 
 export const BOTTOM_NAV_HEIGHT = 68;
 
@@ -47,7 +50,7 @@ const C = {
   light: {
     bg: "#ffffff",
     border: "rgba(0,0,0,0.07)",
-    active: "#059669",
+    active: BRAND_COLORS.primaryGreen,
     inactive: "#9ca3af",
     activePillBase: "#ecfdf5",
     activeLabel: "#022c22",
@@ -123,7 +126,7 @@ export function BottomNavBar() {
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
   const c = C[scheme === "dark" ? "dark" : "light"];
-  const { imageUri, initials } = useUserProfile();
+  const { imageUri } = useUserProfile();
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
 
@@ -182,21 +185,10 @@ export function BottomNavBar() {
                     { borderColor: active ? c.active : c.inactive },
                   ]}
                 >
-                  {imageUri ? (
-                    <Image
-                      source={{ uri: imageUri }}
-                      style={styles.profileAvatarImg}
-                    />
-                  ) : (
-                    <Text
-                      style={[
-                        styles.profileAvatarText,
-                        { color: active ? c.active : c.inactive },
-                      ]}
-                    >
-                      {initials}
-                    </Text>
-                  )}
+                  <Image
+                    source={imageUri ? { uri: imageUri } : ProfileImage}
+                    style={styles.profileAvatarImg}
+                  />
                 </View>
               ) : (
                 <TabIcon size={22} color={color} />

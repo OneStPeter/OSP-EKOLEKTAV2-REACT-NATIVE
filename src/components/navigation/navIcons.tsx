@@ -1,6 +1,7 @@
 import { AntDesign, Entypo, MaterialCommunityIcons } from "@expo/vector-icons";
-import { Receipt } from "lucide-react-native";
+import { PhilippinePeso } from "lucide-react-native";
 import React from "react";
+import { View } from "react-native";
 
 export type NavIconProps = { size: number; color: string };
 
@@ -12,17 +13,41 @@ export const HomeActiveIcon = (p: NavIconProps) => (
 );
 
 export const McprIcon = (p: NavIconProps) => (
-  <Receipt size={p.size} color={p.color} strokeWidth={1.9} />
+  <AntDesign name="file-text" size={p.size} color={p.color} strokeWidth={1.9} />
 );
 export const McprActiveIcon = (p: NavIconProps) => (
-  <Receipt size={p.size} color={p.color} strokeWidth={2.3} />
+  <AntDesign name="file-text" size={p.size} color={p.color} strokeWidth={2.3} />
 );
 
-export const PaymentIcon = (p: NavIconProps) => (
-  <AntDesign name="dollar" size={p.size} color={p.color} />
+export const PaymentIcon = ({ size, color }: NavIconProps) => (
+  <View
+    style={{
+      width: size,
+      height: size,
+      borderRadius: size / 2,
+      borderWidth: 1.5,
+      borderColor: color,
+      alignItems: "center",
+      justifyContent: "center",
+    }}
+  >
+    <PhilippinePeso size={size * 0.58} color={color} strokeWidth={1.9} />
+  </View>
 );
-export const PaymentActiveIcon = (p: NavIconProps) => (
-  <AntDesign name="dollar-circle" size={p.size} color={p.color} />
+export const PaymentActiveIcon = ({ size, color }: NavIconProps) => (
+  <View
+    style={{
+      width: size,
+      height: size,
+      borderRadius: size / 2,
+      borderWidth: 2,
+      borderColor: color,
+      alignItems: "center",
+      justifyContent: "center",
+    }}
+  >
+    <PhilippinePeso size={size * 0.58} color={color} strokeWidth={2.4} />
+  </View>
 );
 
 export const DisbursementIcon = (p: NavIconProps) => (

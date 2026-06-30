@@ -53,25 +53,25 @@ const C = {
 
 // ── Static data ────────────────────────────────────────────────────────────
 const PLANHOLDERS = {
-  newSales: 1284,
-  prevNewSales: 1120,
-  activeAccounts: 12100,
-  prevActiveAccounts: 11850,
-  lapsedAccounts: 7300,
-  prevLapsedAccounts: 6900,
-  terminatedAccounts: 24700,
-  prevTerminatedAccounts: 25100,
+  newSales: 11,
+  prevNewSales: 8,
+  activeAccounts: 1210,
+  prevActiveAccounts: 1185,
+  lapsedAccounts: 22,
+  prevLapsedAccounts: 15,
+  terminatedAccounts: 2,
+  prevTerminatedAccounts: 5,
 };
 
 const QC = {
-  comQuota: 5820000,
-  comCollection: 4231500,
-  nComQuota: 2340000,
-  nComCollection: 1887000,
-  comAcctDue: 1284,
-  comAcctCollection: 943,
-  nComAcctDue: 862,
-  nComAcctCollection: 714,
+  comQuota: 582000,
+  comCollection: 423150,
+  nComQuota: 234000,
+  nComCollection: 188700,
+  comAcctDue: 750,
+  comAcctCollection: 620,
+  nComAcctDue: 460,
+  nComAcctCollection: 385,
 };
 
 const LEADERBOARD = [
@@ -158,7 +158,7 @@ const TILES: TileData[] = [
   {
     Icon: UserCheck,
     title: "Active Accounts",
-    value: "12.1k",
+    value: PLANHOLDERS.activeAccounts.toLocaleString(),
     prevVal: PLANHOLDERS.prevActiveAccounts.toLocaleString(),
     pct:
       ((PLANHOLDERS.activeAccounts - PLANHOLDERS.prevActiveAccounts) /
@@ -170,7 +170,7 @@ const TILES: TileData[] = [
   {
     Icon: UserX,
     title: "Lapsed Accounts",
-    value: "7.3k",
+    value: PLANHOLDERS.lapsedAccounts.toLocaleString(),
     prevVal: PLANHOLDERS.prevLapsedAccounts.toLocaleString(),
     pct:
       ((PLANHOLDERS.lapsedAccounts - PLANHOLDERS.prevLapsedAccounts) /
@@ -182,7 +182,7 @@ const TILES: TileData[] = [
   {
     Icon: UserMinus,
     title: "Terminated Accounts",
-    value: "24.7k",
+    value: PLANHOLDERS.terminatedAccounts.toLocaleString(),
     prevVal: PLANHOLDERS.prevTerminatedAccounts.toLocaleString(),
     pct:
       ((PLANHOLDERS.terminatedAccounts - PLANHOLDERS.prevTerminatedAccounts) /

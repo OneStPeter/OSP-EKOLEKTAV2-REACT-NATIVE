@@ -1,7 +1,9 @@
-import { usePathname } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { usePathname, useRouter } from "expo-router";
 import { ChevronDown, X } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -35,10 +37,14 @@ import {
   PlanMgmtIcon,
 } from "./navIcons";
 
+const ProfileImage = require("../../../assets/images/Profile.png");
+
 import { useNav } from "@/context/nav-context";
+import { BRAND_COLORS } from "@/constants/colors";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
+const PRIMARY_GREEN: string = BRAND_COLORS.primaryGreen;
 const SUB_ROW_H = 44;
 
 // ─── Colour theme ────────────────────────────────────────────────────────────
@@ -47,42 +53,42 @@ const C = {
   light: {
     overlay: "rgba(0,0,0,0.46)",
     drawer: "#ffffff",
-    divider: "#f3f4f6",
+    divider: "#d1d5db",
     // header
-    headerBg: "#022c22",
-    headerTitle: "#ffffff",
-    headerSub: "#6ee7b7",
+    headerBg: "#ffffff",
+    headerTitle: "#022c22",
+    headerSub: PRIMARY_GREEN,
     closeBg: "rgba(255,255,255,0.12)",
-    avatarBg: "#059669",
+    avatarBg: PRIMARY_GREEN,
     avatarText: "#ffffff",
     avatarRing: "rgba(110,231,183,0.4)",
     // section label
     sectionLabel: "#9ca3af",
     // direct nav item
     itemText: "#374151",
-    itemIcon: "#059669",
+    itemIcon: PRIMARY_GREEN,
     // active leaf item (no sub-items)
-    activeItemBg: "#059669",
+    activeItemBg: PRIMARY_GREEN,
     activeItemText: "#ffffff",
     activeItemIcon: "#ffffff",
     // parent item when expanded / has active sub-item
     expandedItemBg: "#ecfdf5",
     expandedItemText: "#022c22",
-    expandedItemIcon: "#059669",
-    expandedBorderLeft: "#059669",
+    expandedItemIcon: PRIMARY_GREEN,
+    expandedBorderLeft: PRIMARY_GREEN,
     // chevron
     chevron: "#9ca3af",
     // sub-items
-    subSeparator: "#059669",
+    subSeparator: PRIMARY_GREEN,
     subText: "#6b7280",
-    subActiveBg: "#059669",
+    subActiveBg: PRIMARY_GREEN,
     subActiveText: "#ffffff",
   },
   dark: {
     overlay: "rgba(0,0,0,0.68)",
     drawer: "#0d1f1a",
-    divider: "#1f2937",
-    headerBg: "#011a14",
+    divider: "#374151",
+    headerBg: "#ffffff",
     headerTitle: "#f0fdf4",
     headerSub: "#34d399",
     closeBg: "rgba(255,255,255,0.08)",
@@ -359,16 +365,20 @@ function NavItemRow({ item, pathname, navigateTo, c }: NavItemRowProps) {
 // ─── SidebarDrawer ────────────────────────────────────────────────────────────
 
 export function SidebarDrawer({
-  userName = "Jerome Jardio",
-  userRole = "Branch Cashier/Encoder",
-  userInitials = "JR",
+  userName = "Joyce Basilio-Ramos",
+  userRole = "Sales Agent 2",
 }: {
   userName?: string;
   userRole?: string;
-  userInitials?: string;
 } = {}) {
   const { drawerOpen, closeDrawer, navigateTo } = useNav();
+  const router = useRouter();
   const pathname = usePathname();
+
+  function handleSignOut() {
+    closeDrawer();
+    router.replace("/(auth)/login");
+  }
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
   const c = C[scheme === "dark" ? "dark" : "light"];
@@ -426,20 +436,19 @@ export function SidebarDrawer({
         <View
           style={[
             styles.header,
-            { backgroundColor: c.headerBg, paddingTop: insets.top + 10 },
+            {
+              backgroundColor: c.headerBg,
+              paddingTop: insets.top + 10,
+              borderBottomColor: c.divider,
+              borderBottomWidth: 1,
+            },
           ]}
         >
           <View style={styles.headerRow}>
             {/* Avatar + name + role */}
             <View style={styles.profileRow}>
               <View style={[styles.avatarRing, { borderColor: c.avatarRing }]}>
-                <View style={[styles.avatar, { backgroundColor: c.avatarBg }]}>
-                  <Text
-                    style={[styles.avatarInitials, { color: c.avatarText }]}
-                  >
-                    {userInitials}
-                  </Text>
-                </View>
+                <Image source={ProfileImage} style={styles.avatar} />
               </View>
 
               <View style={styles.userInfo}>
@@ -478,10 +487,6 @@ export function SidebarDrawer({
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
-          <Text style={[styles.sectionLabel, { color: c.sectionLabel }]}>
-            NAVIGATION
-          </Text>
-
           {ITEMS.map((item) => (
             <NavItemRow
               key={item.name}
@@ -503,6 +508,21 @@ export function SidebarDrawer({
             },
           ]}
         >
+          <TouchableOpacity
+            style={styles.signOutBtn}
+            onPress={handleSignOut}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel="Sign out"
+          >
+            <Ionicons name="exit-outline" size={20} color="#dc2626" />
+            <Text style={styles.signOutText}>Sign Out</Text>
+          </TouchableOpacity>
+
+          <View
+            style={[styles.footerDivider, { backgroundColor: c.divider }]}
+          />
+
           <Text style={[styles.footerText, { color: c.sectionLabel }]}>
             © 2026 St. Peter Life Plans
           </Text>
@@ -536,7 +556,7 @@ const styles = StyleSheet.create({
   // ── User profile header ────────────────────────────────────────────────
   header: {
     paddingHorizontal: 16,
-    paddingBottom: 18,
+    paddingBottom: 8,
   },
   headerRow: {
     flexDirection: "row",
@@ -564,12 +584,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarInitials: {
-    fontSize: 14,
-    fontWeight: "700",
   },
   userInfo: {
     flex: 1,
@@ -662,6 +676,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 14,
     gap: 2,
+  },
+  signOutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 10,
+    marginBottom: 8,
+  },
+  signOutText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#dc2626",
+  },
+  footerDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: -20,
+    marginBottom: 10,
   },
   footerText: {
     fontSize: 11,

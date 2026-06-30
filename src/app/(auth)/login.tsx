@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -63,19 +62,6 @@ function Checkbox({
   );
 }
 
-// ─── Logo block ──────────────────────────────────────────────────────────────
-function LogoBlock() {
-  return (
-    <View style={styles.logoBox}>
-      <Image
-        source={require("@/assets/images/icon.png")}
-        style={styles.logoImage}
-        contentFit="contain"
-      />
-    </View>
-  );
-}
-
 // ─── Screen ──────────────────────────────────────────────────────────────────
 export default function LoginScreen() {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -92,6 +78,16 @@ export default function LoginScreen() {
   }>({});
 
   const { loading, socialLoading, error, signIn, signInWithSocial } = useAuth();
+
+  // Responsive sizing — compress spacing on short screens so nothing overflows
+  const brandPaddingV = isSmallScreen ? 10 : 28;
+  const brandGap = isSmallScreen ? 8 : 16;
+  const logoBoxSize = isSmallScreen ? 60 : 80;
+  const logoImgSize = isSmallScreen ? 42 : 56;
+  const cardPaddingV = isSmallScreen ? 20 : 32;
+  const cardGap = isSmallScreen ? 12 : 20;
+  const formGapSize = isSmallScreen ? 10 : 16;
+  const btnHeight = isSmallScreen ? 46 : 52;
 
   function validate(): boolean {
     const errors: { email?: string; password?: string } = {};
@@ -114,8 +110,6 @@ export default function LoginScreen() {
     signIn({ email: email.trim(), password, remember });
   }
 
-  const brandPaddingV = isSmallScreen ? 16 : 32;
-
   return (
     <LinearGradient
       colors={["#022c22", "#064e3b", "#f0fdf4", "#ffffff"]}
@@ -129,28 +123,39 @@ export default function LoginScreen() {
           style={styles.kav}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={[
-                styles.scrollContent,
-                isTabletPortrait && { justifyContent: "center" as const },
-              ]}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            bounces={false}
+          <View
+            style={[
+              styles.inner,
+              isTabletPortrait && { justifyContent: "center" as const },
+            ]}
           >
             {/* ── Dark green brand header ── */}
             <Animated.View
               entering={FadeInDown.duration(500)}
               style={[
                 styles.brandSection,
-                { paddingTop: brandPaddingV, paddingBottom: brandPaddingV },
+                {
+                  paddingTop: brandPaddingV,
+                  paddingBottom: brandPaddingV,
+                  gap: brandGap,
+                },
               ]}
             >
               <View style={styles.dotGrid} pointerEvents="none" />
 
               <Animated.View entering={FadeInDown.duration(500).delay(80)}>
-                <LogoBlock />
+                <View
+                  style={[
+                    styles.logoBox,
+                    { width: logoBoxSize, height: logoBoxSize },
+                  ]}
+                >
+                  <Image
+                    source={require("@/assets/images/icon.png")}
+                    style={{ width: logoImgSize, height: logoImgSize }}
+                    contentFit="contain"
+                  />
+                </View>
               </Animated.View>
 
               <Animated.View
@@ -158,7 +163,6 @@ export default function LoginScreen() {
                 style={styles.brandText}
               >
                 <Text style={styles.brandTitle}>One St. Peter</Text>
-                <Text style={styles.brandSubtitle}>LIFE PLAN OPERATIONS</Text>
               </Animated.View>
             </Animated.View>
 
@@ -166,7 +170,10 @@ export default function LoginScreen() {
             <View style={styles.cardOuter}>
               <Animated.View
                 entering={FadeInUp.duration(450).delay(120)}
-                style={styles.card}
+                style={[
+                  styles.card,
+                  { paddingTop: cardPaddingV, paddingBottom: cardPaddingV, gap: cardGap },
+                ]}
               >
                 {/* Card header */}
                 <Animated.View entering={FadeInUp.duration(400).delay(200)}>
@@ -176,7 +183,7 @@ export default function LoginScreen() {
                   </Text>
                 </Animated.View>
 
-                <View style={styles.formGap}>
+                <View style={[styles.formGap, { gap: formGapSize }]}>
                   {/* Error banner */}
                   {error ? (
                     <Animated.View
@@ -252,6 +259,7 @@ export default function LoginScreen() {
                     <TouchableOpacity
                       style={[
                         styles.signInBtn,
+                        { height: btnHeight },
                         loading && styles.signInBtnDisabled,
                       ]}
                       onPress={handleSubmit}
@@ -291,15 +299,6 @@ export default function LoginScreen() {
                       ),
                     )}
                   </Animated.View>
-
-                  {/* Footer note */}
-                  <Animated.View entering={FadeInUp.duration(400).delay(550)}>
-                    <Text style={styles.footerNote}>
-                      This system is for authorized St. Peter personnel only.
-                      {"\n"}
-                      Unauthorized access is prohibited.
-                    </Text>
-                  </Animated.View>
                 </View>
               </Animated.View>
             </View>
@@ -311,7 +310,7 @@ export default function LoginScreen() {
             >
               <Text style={styles.copyright}>© 2026 St. Peter Life Plans</Text>
             </Animated.View>
-          </ScrollView>
+          </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </LinearGradient>
@@ -329,12 +328,9 @@ const styles = StyleSheet.create({
   kav: {
     flex: 1,
   },
-  scrollView: {
+  inner: {
     flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 8,
+    justifyContent: "space-between",
   },
 
   // ── Brand header ──
@@ -361,10 +357,6 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.2)",
     alignItems: "center",
     justifyContent: "center",
-  },
-  logoImage: {
-    width: 56,
-    height: 56,
   },
   brandText: {
     alignItems: "center",
