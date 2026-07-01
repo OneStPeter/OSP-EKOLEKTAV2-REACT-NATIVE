@@ -1,4 +1,5 @@
 import { Image } from "expo-image";
+import { useSegments } from "expo-router";
 import { Bell, Menu, Search } from "lucide-react-native";
 import React from "react";
 import {
@@ -14,6 +15,20 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useNav } from "@/context/nav-context";
 
+// Maps route segment names to display titles. Keep in sync with (tabs)/_layout.tsx options.
+const SCREEN_TITLES: Record<string, string> = {
+  mcpr: "MCPR",
+  payment: "Payment",
+  disbursement: "Disbursement",
+  planholderProfile: "Planholder Profile",
+  profile: "Profile",
+  explore: "Explore",
+};
+
+const SCREEN_SUBTITLES: Record<string, string> = {
+  mcpr: "Monthly Collection & Performance",
+};
+
 const C = {
   light: {
     bg: "#ffffff",
@@ -26,6 +41,7 @@ const C = {
     actionColor: "#022c22",
     badgeBg: "#dc2626",
     badgeText: "#ffffff",
+    subtitle: "#9ca3af",
   },
   dark: {
     bg: "#0d1f1a",
@@ -38,6 +54,7 @@ const C = {
     actionColor: "#d1fae5",
     badgeBg: "#dc2626",
     badgeText: "#ffffff",
+    subtitle: "#9ca3af",
   },
 };
 
@@ -59,6 +76,14 @@ export function AppHeader({
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
 
+  const segments = useSegments();
+  // Last segment is the tab name; fall back to "index" when on the root tab.
+  const activeSegment =
+    (segments[segments.length - 1] as string | undefined) ?? "index";
+  const isHome = activeSegment === "index" || activeSegment === "(tabs)";
+  const screenTitle = SCREEN_TITLES[activeSegment] ?? activeSegment;
+  const screenSubtitle = SCREEN_SUBTITLES[activeSegment];
+
   const badgeCount = Math.min(notificationCount, 99);
 
   return (
@@ -73,7 +98,7 @@ export function AppHeader({
       ]}
     >
       <View style={[styles.row, isTablet && styles.rowTablet]}>
-        {/* ── Left: burger + brand ── */}
+        {/* ── Left: burger + brand / screen title ── */}
         <View style={styles.left}>
           <TouchableOpacity
             style={styles.iconBtn}
@@ -85,29 +110,48 @@ export function AppHeader({
             <Menu size={20} color={c.burgerColor} strokeWidth={2} />
           </TouchableOpacity>
 
-          <View style={styles.brandSection}>
-            <View
-              style={[
-                styles.logoWrap,
-                { backgroundColor: c.logoBg, borderColor: c.logoBorder },
-              ]}
-            >
-              <Image
-                source={require("@/assets/images/icon.png")}
-                style={styles.logoImg}
-                contentFit="contain"
-              />
-            </View>
+          {isHome ? (
+            <View style={styles.brandSection}>
+              <View
+                style={[
+                  styles.logoWrap,
+                  { backgroundColor: c.logoBg, borderColor: c.logoBorder },
+                ]}
+              >
+                <Image
+                  source={require("@/assets/images/icon.png")}
+                  style={styles.logoImg}
+                  contentFit="contain"
+                />
+              </View>
 
-            <View style={styles.brandText}>
-              <Text style={[styles.brandName, { color: c.brandName }]}>
-                eKolekta
-              </Text>
-              <Text style={[styles.tagline, { color: c.tagline }]}>
-                LIFE PLAN OPERATIONS
-              </Text>
+              <View style={styles.brandText}>
+                <Text style={[styles.brandName, { color: c.brandName }]}>
+                  eKolekta
+                </Text>
+                <Text style={[styles.tagline, { color: c.tagline }]}>
+                  LIFE PLAN OPERATIONS
+                </Text>
+              </View>
             </View>
-          </View>
+          ) : (
+            <View style={styles.screenTitleBlock}>
+              <Text
+                style={[styles.screenTitle, { color: c.brandName }]}
+                numberOfLines={1}
+              >
+                {screenTitle}
+              </Text>
+              {screenSubtitle && (
+                <Text
+                  style={[styles.screenSubtitle, { color: c.subtitle }]}
+                  numberOfLines={1}
+                >
+                  {screenSubtitle}
+                </Text>
+              )}
+            </View>
+          )}
         </View>
 
         {/* ── Right: search + notification bell ── */}
@@ -231,6 +275,23 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: "700",
     letterSpacing: 2,
+    textTransform: "uppercase",
+  },
+
+  // ── Screen title (non-home screens) ───────────────
+  screenTitleBlock: {
+    flex: 1,
+    gap: 1,
+  },
+  screenTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    letterSpacing: -0.3,
+  },
+  screenSubtitle: {
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 0.8,
     textTransform: "uppercase",
   },
 

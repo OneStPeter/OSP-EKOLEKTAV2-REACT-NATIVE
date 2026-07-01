@@ -37,19 +37,19 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle } from "react-native-svg";
 
 import { BOTTOM_NAV_HEIGHT } from "@/components/navigation/BottomNavBar";
+import {
+  AppButton,
+  AppCaption,
+  AppLabel,
+  AppText,
+  AppTitle,
+  Card,
+  IconBox,
+  RowItem,
+  SectionHeader,
+  theme,
+} from "@/components/ui";
 import { useScrollNav } from "@/hooks/use-scroll-nav";
-
-// ── Design tokens ──────────────────────────────────────────────────────────
-const C = {
-  ink: "#1B2024",
-  body: "#71717a",
-  muted: "#8B9097",
-  border: "#ECEEF0",
-  dots: "#D1D5DB",
-  bg: "#F6F7F8",
-  card: "#FFFFFF",
-  primary: "#1B9E57",
-};
 
 // ── Static data ────────────────────────────────────────────────────────────
 const PLANHOLDERS = {
@@ -153,7 +153,7 @@ const TILES: TileData[] = [
         PLANHOLDERS.prevNewSales) *
       100,
     order: "asc",
-    color: "#1B9E57",
+    color: theme.color.accent,
   },
   {
     Icon: UserCheck,
@@ -165,7 +165,7 @@ const TILES: TileData[] = [
         PLANHOLDERS.prevActiveAccounts) *
       100,
     order: "asc",
-    color: "#1976D2",
+    color: theme.color.info,
   },
   {
     Icon: UserX,
@@ -177,7 +177,7 @@ const TILES: TileData[] = [
         PLANHOLDERS.prevLapsedAccounts) *
       100,
     order: "desc",
-    color: "#F57C00",
+    color: theme.color.warning,
   },
   {
     Icon: UserMinus,
@@ -189,7 +189,7 @@ const TILES: TileData[] = [
         PLANHOLDERS.prevTerminatedAccounts) *
       100,
     order: "desc",
-    color: "#E53E3E",
+    color: theme.color.error,
   },
 ];
 
@@ -256,7 +256,6 @@ function DonutChart({
         justifyContent: "center",
       }}
     >
-      {/* SVG rotated -90° so the stroke starts at 12 o'clock */}
       <Svg
         width={size}
         height={size}
@@ -282,75 +281,8 @@ function DonutChart({
           animatedProps={animatedProps}
         />
       </Svg>
-      {/* Label — outside SVG, unaffected by rotation */}
       <Text style={{ fontSize, fontWeight: "800", color }} numberOfLines={1}>
         {Math.round(percentage)}%
-      </Text>
-    </View>
-  );
-}
-
-// ── Section label ──────────────────────────────────────────────────────────
-function SectionLabel({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle?: string;
-}) {
-  return (
-    <View style={{ marginBottom: 10 }}>
-      <Text style={s.sectionTitle}>{title}</Text>
-      {subtitle ? <Text style={s.sectionSub}>{subtitle}</Text> : null}
-    </View>
-  );
-}
-
-// ── Card wrapper ───────────────────────────────────────────────────────────
-function Card({
-  icon: Icon,
-  iconColor,
-  title,
-  subtitle,
-  children,
-}: {
-  icon: React.ComponentType<any>;
-  iconColor: string;
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <View style={s.card}>
-      <View style={s.cardHeader}>
-        <View style={[s.cardIconWrap, { backgroundColor: iconColor + "18" }]}>
-          <Icon size={14} strokeWidth={2.2} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={s.cardTitle}>{title}</Text>
-          {subtitle ? <Text style={s.cardSub}>{subtitle}</Text> : null}
-        </View>
-      </View>
-      <View style={s.cardBody}>{children}</View>
-    </View>
-  );
-}
-
-// ── Row item (label + value) ───────────────────────────────────────────────
-function RowItem({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number;
-  last?: boolean;
-}) {
-  return (
-    <View style={s.rowItem}>
-      <Text style={s.rowLabel}>{label}</Text>
-      <View style={s.rowDots} />
-      <Text style={s.rowValue}>
-        {typeof value === "number" ? value.toLocaleString() : value}
       </Text>
     </View>
   );
@@ -360,8 +292,8 @@ function RowItem({
 function Tile({ tile }: { tile: TileData }) {
   const { Icon, title, value, prevVal, pct, order, color } = tile;
   const isPositive = order === "asc" ? pct >= 0 : pct <= 0;
-  const trendColor = isPositive ? "#1B9E57" : "#D32F2F";
-  const trendBg = isPositive ? "#E8F5E9" : "#FFEBEE";
+  const trendColor = isPositive ? theme.color.accent : theme.color.error;
+  const trendBg = isPositive ? theme.color.successBg : theme.color.errorBg;
   const absPct = Math.abs(pct).toFixed(1);
 
   return (
@@ -369,18 +301,18 @@ function Tile({ tile }: { tile: TileData }) {
       style={[s.tile, { borderColor: color, backgroundColor: color + "15" }]}
     >
       <View style={s.tileHeaderRow}>
-        <View style={[s.tileIconWrap, { backgroundColor: color + "18" }]}>
-          <Icon size={18} color={color} strokeWidth={2} />
-        </View>
-        <Text style={s.tileTitle}>{title}</Text>
+        <IconBox icon={Icon} color={color} size={40} iconSize={18} borderRadius={11} />
+        <AppText fontWeight="600" style={{ fontSize: 16 }}>{title}</AppText>
       </View>
 
-      <Text style={s.tileValue}>{value}</Text>
+      <AppTitle style={{ fontSize: 32, lineHeight: 40, letterSpacing: -0.8 }}>
+        {value}
+      </AppTitle>
 
       <View style={s.tileMomRow}>
         <View>
-          <Text style={s.tilePriorLabel}>Prior Month</Text>
-          <Text style={s.tilePriorVal}>{prevVal}</Text>
+          <AppLabel>Prior Month</AppLabel>
+          <AppText fontWeight="600" style={{ marginTop: 2 }}>{prevVal}</AppText>
         </View>
         <View style={s.tileTrendCol}>
           <View style={[s.tilePill, { backgroundColor: trendBg }]}>
@@ -438,17 +370,20 @@ function LeaderItem({
         </Text>
       </View>
 
-      <View style={[s.leaderAvatar, { backgroundColor: C.primary + "22" }]}>
-        <Text style={[s.leaderAvatarText, { color: C.primary }]}>
+      <View
+        style={[
+          s.leaderAvatar,
+          { backgroundColor: theme.color.accent + "22" },
+        ]}
+      >
+        <Text style={[s.leaderAvatarText, { color: theme.color.accent }]}>
           {initials}
         </Text>
       </View>
 
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={s.leaderName} numberOfLines={1}>
-          {name}
-        </Text>
-        <Text style={s.leaderNs}>{ns.toLocaleString()} sales</Text>
+        <AppText fontWeight="600" numberOfLines={1}>{name}</AppText>
+        <AppCaption style={{ marginTop: 1 }}>{ns.toLocaleString()} sales</AppCaption>
       </View>
 
       <View style={{ width: 64 }}>
@@ -459,7 +394,7 @@ function LeaderItem({
               s.barFill,
               {
                 width: barW,
-                backgroundColor: isTop3 ? rankColor : C.primary,
+                backgroundColor: isTop3 ? rankColor : theme.color.accent,
               },
             ]}
           />
@@ -491,12 +426,10 @@ function BarItem({
   isAnySelected: boolean;
   onPress: () => void;
 }) {
-  // Press animation
   const scale = useSharedValue(1);
   const lift = useSharedValue(0);
   const opacity = useSharedValue(1);
 
-  // Mount animation — bar grows up, label fades in after bar lands
   const barH = useSharedValue(0);
   const labelOpacity = useSharedValue(0);
 
@@ -547,7 +480,10 @@ function BarItem({
           <Animated.View
             style={[
               s.barActual,
-              { backgroundColor: d.value > 0 ? C.primary : C.border },
+              {
+                backgroundColor:
+                  d.value > 0 ? theme.color.accent : theme.color.border,
+              },
               barStyle,
             ]}
           />
@@ -610,7 +546,6 @@ export default function HomeScreen() {
   const [year, setYear] = useState("2026");
   const chartData = MONTHLY_SALES[year];
 
-  // Reset carousel position when screen width changes (orientation / foldable)
   useEffect(() => {
     carouselRef.current?.scrollTo({ x: 0, animated: false });
     setActiveSlide(0);
@@ -639,7 +574,7 @@ export default function HomeScreen() {
     <Animated.ScrollView
       onScroll={scrollHandler}
       scrollEventThrottle={16}
-      style={{ backgroundColor: C.bg }}
+      style={{ backgroundColor: theme.color.bg }}
       contentContainerStyle={[
         s.content,
         {
@@ -650,12 +585,11 @@ export default function HomeScreen() {
       showsVerticalScrollIndicator={false}
     >
       {/* ── Account Overview ──────────────────────────── */}
-      <SectionLabel
+      <SectionHeader
         title="Account Overview"
         subtitle="Month-over-month account metrics"
       />
       {isTablet ? (
-        // Tablets: 2-column static grid
         <View
           style={{
             flexDirection: "row",
@@ -671,7 +605,6 @@ export default function HomeScreen() {
           ))}
         </View>
       ) : (
-        // Phones: swipeable carousel with dots
         <>
           <ScrollView
             ref={carouselRef}
@@ -702,7 +635,7 @@ export default function HomeScreen() {
               style={s.arrowBtn}
               activeOpacity={0.7}
             >
-              <ChevronLeft size={16} color={C.primary} strokeWidth={2.5} />
+              <ChevronLeft size={16} color={theme.color.accent} strokeWidth={2.5} />
             </TouchableOpacity>
 
             <View style={s.dots}>
@@ -719,58 +652,42 @@ export default function HomeScreen() {
               style={s.arrowBtn}
               activeOpacity={0.7}
             >
-              <ChevronRight size={16} color={C.primary} strokeWidth={2.5} />
+              <ChevronRight size={16} color={theme.color.accent} strokeWidth={2.5} />
             </TouchableOpacity>
           </View>
         </>
       )}
 
       {/* ── Efficiency ────────────────────────────────── */}
-      <SectionLabel
+      <SectionHeader
         title="Efficiency"
         subtitle="Quota vs. collection performance"
       />
 
       <Card
         icon={TrendingUp}
-        iconColor={C.body}
         title="Quota & Collection"
         subtitle="Amount targets"
       >
         <RowItem label="Comm. Quota" value={fmtPeso(QC.comQuota)} />
         <RowItem label="Comm. Collection" value={fmtPeso(QC.comCollection)} />
-
         <RowItem label="Non-Comm. Quota" value={fmtPeso(QC.nComQuota)} />
-        <RowItem
-          label="Non-Comm. Collection"
-          value={fmtPeso(QC.nComCollection)}
-          last
-        />
+        <RowItem label="Non-Comm. Collection" value={fmtPeso(QC.nComCollection)} />
       </Card>
 
       <Card
         icon={Users}
-        iconColor={C.body}
         title="Accounts Due & Collected"
         subtitle="Account count targets"
       >
         <RowItem label="Comm. Accounts Due" value={QC.comAcctDue} />
-        <RowItem
-          label="Comm. Accounts Collected"
-          value={QC.comAcctCollection}
-        />
-
+        <RowItem label="Comm. Accounts Collected" value={QC.comAcctCollection} />
         <RowItem label="Non-Comm. Accounts Due" value={QC.nComAcctDue} />
-        <RowItem
-          label="Non-Comm. Accounts Collected"
-          value={QC.nComAcctCollection}
-          last
-        />
+        <RowItem label="Non-Comm. Accounts Collected" value={QC.nComAcctCollection} />
       </Card>
 
       <Card
         icon={Zap}
-        iconColor={C.body}
         title="Efficiency Rates"
         subtitle="Collection efficiency"
       >
@@ -779,26 +696,26 @@ export default function HomeScreen() {
             {
               title: "CVE Com",
               pct: comEff,
-              color: comEff < 50 ? "#F87171" : C.primary,
-              bg: comEff < 50 ? "#FECACA" : "#D1FAE5",
+              color: comEff < 50 ? "#F87171" : theme.color.accent,
+              bg: comEff < 50 ? "#FECACA" : theme.color.successBg,
             },
             {
               title: "CVE NCom",
               pct: nComEff,
-              color: nComEff < 50 ? "#F87171" : C.primary,
-              bg: nComEff < 50 ? "#FECACA" : "#D1FAE5",
+              color: nComEff < 50 ? "#F87171" : theme.color.accent,
+              bg: nComEff < 50 ? "#FECACA" : theme.color.successBg,
             },
             {
               title: "ADE Com",
               pct: comAde,
-              color: comAde < 50 ? "#F87171" : C.primary,
-              bg: comAde < 50 ? "#FECACA" : "#D1FAE5",
+              color: comAde < 50 ? "#F87171" : theme.color.accent,
+              bg: comAde < 50 ? "#FECACA" : theme.color.successBg,
             },
             {
               title: "ADE NCom",
               pct: nComAde,
-              color: nComAde < 50 ? "#F87171" : C.primary,
-              bg: nComAde < 50 ? "#FECACA" : "#D1FAE5",
+              color: nComAde < 50 ? "#F87171" : theme.color.accent,
+              bg: nComAde < 50 ? "#FECACA" : theme.color.successBg,
             },
           ].map((d, i) => (
             <View key={i} style={[s.donutCell, isTablet && { width: "25%" }]}>
@@ -809,21 +726,22 @@ export default function HomeScreen() {
                 size={72}
                 thickness={10}
               />
-              <Text style={s.donutLabel}>{d.title}</Text>
+              <AppCaption fontWeight="600" style={{ textAlign: "center" }}>
+                {d.title}
+              </AppCaption>
             </View>
           ))}
         </View>
       </Card>
 
       {/* ── Performance ───────────────────────────────── */}
-      <SectionLabel
+      <SectionHeader
         title="Performance"
         subtitle="Sales rankings and monthly trends"
       />
 
       <Card
         icon={Trophy}
-        iconColor={C.body}
         title="Sales Agent Leaderboard"
         subtitle="Ranked by new sales this month"
       >
@@ -840,22 +758,21 @@ export default function HomeScreen() {
 
       <Card
         icon={BarChart2}
-        iconColor={C.body}
         title="Monthly New Sales"
         subtitle="New plans enrolled per month"
       >
         <View style={s.yearRow}>
           {["2026", "2025", "2024"].map((y) => (
-            <TouchableOpacity
+            <AppButton
               key={y}
+              size="sm"
+              variant={year === y ? "primary" : "secondary"}
+              textStyle={year !== y ? { color: theme.color.muted } : undefined}
               onPress={() => setYear(y)}
-              style={[s.yearBtn, year === y && s.yearBtnActive]}
               activeOpacity={0.75}
             >
-              <Text style={[s.yearBtnText, year === y && s.yearBtnTextActive]}>
-                {y}
-              </Text>
-            </TouchableOpacity>
+              {y}
+            </AppButton>
           ))}
         </View>
         <BarChart key={year} data={chartData} />
@@ -871,139 +788,11 @@ const s = StyleSheet.create({
     gap: 4,
   },
 
-  // Greeting
-  greetRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  greet: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: C.ink,
-    letterSpacing: -0.3,
-  },
-  greetSub: {
-    fontSize: 13,
-    color: C.muted,
-    marginTop: 2,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: C.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 14,
-  },
-
-  // Section
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: C.ink,
-    letterSpacing: -0.2,
-  },
-  sectionSub: {
-    fontSize: 12,
-    color: C.muted,
-    marginTop: 1,
-  },
-
-  // Card
-  card: {
-    backgroundColor: C.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: C.border,
-    marginBottom: 12,
-    overflow: "hidden",
-    shadowColor: C.muted,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingTop: 14,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
-  },
-  cardIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 99,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    lineHeight: 19,
-    color: C.ink,
-  },
-  cardSub: {
-    fontSize: 11,
-    color: C.muted,
-    marginTop: 1,
-  },
-  cardBody: {
-    paddingHorizontal: 14,
-    paddingBottom: 12,
-    paddingTop: 4,
-  },
-
-  // Row item
-  rowItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 9,
-    // borderBottomWidth: 1,
-    borderBottomColor: C.border,
-  },
-  rowLabel: {
-    fontSize: 13,
-    color: C.muted,
-    flexShrink: 1,
-  },
-  rowDots: {
-    flex: 1,
-    borderBottomWidth: 1,
-    borderBottomColor: C.dots,
-    borderStyle: "dashed",
-    marginHorizontal: 6,
-    marginBottom: 3,
-  },
-  rowValue: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: C.body,
-    textAlign: "right",
-  },
-  separator: {
-    height: 1,
-    backgroundColor: C.border,
-    marginVertical: 2,
-  },
-
-  // Tile (carousel)
+  // Tile (KPI carousel card)
   tile: {
     borderRadius: 24,
     borderWidth: 2,
     padding: 18,
-    position: "relative",
     overflow: "hidden",
     marginBottom: 4,
   },
@@ -1013,46 +802,13 @@ const s = StyleSheet.create({
     gap: 10,
     marginBottom: 12,
   },
-  tileIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tileTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: C.body,
-  },
-  tileValue: {
-    fontSize: 32,
-    fontWeight: "700",
-    letterSpacing: -0.8,
-    color: C.ink,
-    lineHeight: 40,
-  },
   tileMomRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-end",
     marginTop: 6,
     paddingTop: 6,
-    // borderTopWidth: 1,
     borderTopColor: "rgba(0,0,0,0.06)",
-  },
-  tilePriorLabel: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: C.muted,
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-  },
-  tilePriorVal: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: C.body,
-    marginTop: 2,
   },
   tileTrendCol: {
     alignItems: "flex-end",
@@ -1064,7 +820,7 @@ const s = StyleSheet.create({
     gap: 3,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 999,
+    borderRadius: theme.radius.full,
   },
   tilePillText: {
     fontSize: 13,
@@ -1100,10 +856,10 @@ const s = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: C.border,
+    backgroundColor: theme.color.border,
   },
   dotActive: {
-    backgroundColor: C.primary,
+    backgroundColor: theme.color.accent,
     width: 18,
   },
 
@@ -1119,12 +875,6 @@ const s = StyleSheet.create({
     paddingVertical: 12,
     gap: 6,
   },
-  donutLabel: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: C.muted,
-    textAlign: "center",
-  },
 
   // Leaderboard
   leaderRow: {
@@ -1132,8 +882,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     paddingVertical: 10,
-    // borderBottomWidth: 1,
-    borderBottomColor: C.border,
+    borderBottomColor: theme.color.border,
   },
   rankBadge: {
     width: 22,
@@ -1157,26 +906,16 @@ const s = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
   },
-  leaderName: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: C.body,
-  },
-  leaderNs: {
-    fontSize: 11,
-    color: C.muted,
-    marginTop: 1,
-  },
   leaderPct: {
     fontSize: 9,
     fontWeight: "600",
-    color: C.muted,
+    color: theme.color.muted,
     textAlign: "right",
     marginBottom: 3,
   },
   barTrack: {
     height: 4,
-    backgroundColor: C.border,
+    backgroundColor: theme.color.border,
     borderRadius: 2,
     overflow: "hidden",
   },
@@ -1185,30 +924,15 @@ const s = StyleSheet.create({
     borderRadius: 2,
   },
 
-  // Bar chart
+  // Year picker row
   yearRow: {
     flexDirection: "row",
     justifyContent: "flex-end",
     gap: 6,
     marginBottom: 12,
   },
-  yearBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    backgroundColor: C.border,
-  },
-  yearBtnActive: {
-    backgroundColor: C.primary,
-  },
-  yearBtnText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: C.muted,
-  },
-  yearBtnTextActive: {
-    color: "#fff",
-  },
+
+  // Bar chart
   barChartWrap: {
     flexDirection: "row",
     alignItems: "flex-end",
@@ -1223,7 +947,7 @@ const s = StyleSheet.create({
   },
   barValLabel: {
     fontSize: 8,
-    color: C.muted,
+    color: theme.color.muted,
     fontWeight: "600",
   },
   barBody: {
@@ -1237,7 +961,7 @@ const s = StyleSheet.create({
   },
   barMonthLabel: {
     fontSize: 9,
-    color: C.muted,
+    color: theme.color.muted,
     fontWeight: "500",
   },
 });

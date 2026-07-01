@@ -160,8 +160,8 @@ const ITEMS: NavItemDef[] = [
     ],
   },
   {
-    name: "comte",
-    path: "/comte",
+    name: "disbursement",
+    path: "/disbursement",
     label: "Disbursement",
     icon: DisbursementIcon,
     activeIcon: DisbursementActiveIcon,

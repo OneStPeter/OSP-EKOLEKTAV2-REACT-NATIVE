@@ -28,7 +28,7 @@ export default function TabsLayout() {
             <Tabs.Screen name="index" options={{ title: "index" }} />
             <Tabs.Screen name="mcpr" options={{ title: "MCPR" }} />
             <Tabs.Screen name="payment" options={{ title: "Payment" }} />
-            <Tabs.Screen name="comte" options={{ title: "ComTe" }} />
+            <Tabs.Screen name="disbursement" options={{ title: "Disbursement" }} />
             <Tabs.Screen
               name="planholderProfile"
               options={{ title: "Planholder Profile" }}
