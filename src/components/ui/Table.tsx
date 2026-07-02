@@ -12,7 +12,6 @@ import {
 import React, { useMemo, useState } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
 import {
-  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -23,6 +22,7 @@ import {
 } from "react-native";
 
 import { EmptyState } from "./EmptyState";
+import { SwipeDismissModal } from "./SwipeDismissModal";
 import { BRAND_COLORS, palette, theme } from "./theme";
 import { AppCaption } from "./typography";
 
@@ -344,9 +344,7 @@ export function Table<T>({
                     style={s.headerRow}
                     onLayout={(e) => {
                       const h = Math.ceil(e.nativeEvent.layout.height);
-                      setStickyHeaderHeight((prev) =>
-                        prev === h ? prev : h,
-                      );
+                      setStickyHeaderHeight((prev) => (prev === h ? prev : h));
                     }}
                   >
                     {activeCols.slice(1).map((col) => (
@@ -354,9 +352,7 @@ export function Table<T>({
                         key={col.key}
                         style={[s.headerCell, { width: col.width }]}
                         onPress={
-                          col.sortValue
-                            ? () => handleSort(col.key)
-                            : undefined
+                          col.sortValue ? () => handleSort(col.key) : undefined
                         }
                         activeOpacity={col.sortValue ? 0.65 : 1}
                       >
@@ -571,152 +567,99 @@ export function Table<T>({
         </View>
       )}
 
-      {/* Rows per page modal */}
-      <Modal
+      <SwipeDismissModal
         visible={rowsModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setRowsModalVisible(false)}
+        onDismiss={() => setRowsModalVisible(false)}
+        title="Rows per page"
+        sheetWidth={280}
       >
-        <TouchableOpacity
-          style={s.overlay}
-          activeOpacity={1}
-          onPress={() => setRowsModalVisible(false)}
-        >
-          <View
-            style={[
-              s.pickerSheet,
-              { backgroundColor: theme.color.card, width: 200 },
-            ]}
-          >
-            <Text style={[s.pickerTitle, { color: theme.color.ink }]}>
-              Rows per page
-            </Text>
-            {[...pageSizeOptions].map((n) => (
-              <TouchableOpacity
-                key={n}
+        <View style={s.pickerList}>
+          {[...pageSizeOptions].map((n) => (
+            <TouchableOpacity
+              key={n}
+              style={[
+                s.pickerRow,
+                { borderBottomColor: theme.color.border },
+                pageSize === n && { backgroundColor: "#ecfdf5" },
+              ]}
+              onPress={() => {
+                setPageSize(n);
+                setCurrentPage(1);
+                setRowsModalVisible(false);
+              }}
+            >
+              <Text
                 style={[
-                  s.pickerRow,
-                  { borderBottomColor: theme.color.border },
-                  pageSize === n && { backgroundColor: "#ecfdf5" },
+                  s.pickerRowText,
+                  {
+                    color:
+                      pageSize === n
+                        ? BRAND_COLORS.primaryGreen
+                        : theme.color.ink,
+                  },
                 ]}
-                onPress={() => {
-                  setPageSize(n);
-                  setCurrentPage(1);
-                  setRowsModalVisible(false);
-                }}
               >
-                <Text
-                  style={[
-                    s.pickerRowText,
-                    {
-                      color:
-                        pageSize === n
-                          ? BRAND_COLORS.primaryGreen
-                          : theme.color.ink,
-                    },
-                  ]}
-                >
-                  {n} rows
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
+                {n} rows
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </SwipeDismissModal>
 
       {/* Column picker modal */}
       {columnSelectionEnabled && (
-        <Modal
+        <SwipeDismissModal
           visible={colsModalVisible}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setColsModalVisible(false)}
+          onDismiss={() => setColsModalVisible(false)}
+          title="Columns"
+          sheetWidth={width >= 768 ? 360 : 320}
         >
-          <View style={s.overlay}>
-            <View
-              style={[
-                s.colSheet,
-                {
-                  backgroundColor: theme.color.card,
-                  width: width >= 768 ? 360 : width - 32,
-                },
-              ]}
-            >
-              <View
-                style={[
-                  s.colSheetHeader,
-                  { borderBottomColor: theme.color.border },
-                ]}
-              >
-                <Text
-                  style={{
-                    fontSize: 15,
-                    fontWeight: "700",
-                    color: theme.color.ink,
-                  }}
-                >
-                  Columns
-                </Text>
+          <View style={s.colList}>
+            {columns.map((col) => {
+              const isVisible = visibleCols[col.key] !== false;
+              const count = Object.values(visibleCols).filter(Boolean).length;
+              const isLast = isVisible && count === 1;
+              return (
                 <TouchableOpacity
-                  onPress={() => setColsModalVisible(false)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  key={col.key}
+                  style={[s.colRow, { borderBottomColor: theme.color.border }]}
+                  onPress={() => !isLast && toggleCol(col.key)}
+                  activeOpacity={isLast ? 1 : 0.7}
                 >
-                  <X size={20} color={theme.color.muted} strokeWidth={2} />
-                </TouchableOpacity>
-              </View>
-              <ScrollView keyboardShouldPersistTaps="handled">
-                {columns.map((col) => {
-                  const isVisible = visibleCols[col.key] !== false;
-                  const count =
-                    Object.values(visibleCols).filter(Boolean).length;
-                  const isLast = isVisible && count === 1;
-                  return (
-                    <TouchableOpacity
-                      key={col.key}
-                      style={[
-                        s.colRow,
-                        { borderBottomColor: theme.color.border },
-                      ]}
-                      onPress={() => !isLast && toggleCol(col.key)}
-                      activeOpacity={isLast ? 1 : 0.7}
-                    >
-                      <Text
-                        style={[
-                          s.colRowLabel,
-                          {
-                            color: isLast ? theme.color.muted : theme.color.ink,
+                  <Text
+                    style={[
+                      s.colRowLabel,
+                      {
+                        color: isLast ? theme.color.muted : theme.color.ink,
+                      },
+                    ]}
+                  >
+                    {col.label}
+                  </Text>
+                  <View
+                    style={[
+                      s.checkbox,
+                      isVisible
+                        ? {
+                            backgroundColor: theme.color.accent,
+                            borderColor: theme.color.accent,
+                          }
+                        : {
+                            borderColor: theme.color.border,
+                            backgroundColor: "transparent",
                           },
-                        ]}
-                      >
-                        {col.label}
-                      </Text>
-                      <View
-                        style={[
-                          s.checkbox,
-                          isVisible
-                            ? {
-                                backgroundColor: theme.color.accent,
-                                borderColor: theme.color.accent,
-                              }
-                            : {
-                                borderColor: theme.color.border,
-                                backgroundColor: "transparent",
-                              },
-                          isLast && { opacity: 0.4 },
-                        ]}
-                      >
-                        {isVisible && (
-                          <Check size={11} color="#fff" strokeWidth={3} />
-                        )}
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
+                      isLast && { opacity: 0.4 },
+                    ]}
+                  >
+                    {isVisible && (
+                      <Check size={11} color="#fff" strokeWidth={3} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        </Modal>
+        </SwipeDismissModal>
       )}
     </View>
   );
@@ -855,22 +798,9 @@ const s = StyleSheet.create({
     borderColor: theme.color.border,
   },
 
-  // Shared modal backdrop
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
   // Rows-per-page picker
-  pickerSheet: { borderRadius: 16, overflow: "hidden", paddingTop: 4 },
-  pickerTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 10,
+  pickerList: {
+    paddingVertical: 4,
   },
   pickerRow: {
     paddingHorizontal: 16,
@@ -880,14 +810,8 @@ const s = StyleSheet.create({
   pickerRowText: { fontSize: 14 },
 
   // Column picker
-  colSheet: { borderRadius: 16, overflow: "hidden", maxHeight: "80%" },
-  colSheetHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+  colList: {
+    paddingVertical: 4,
   },
   colRow: {
     flexDirection: "row",

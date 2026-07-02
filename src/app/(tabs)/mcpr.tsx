@@ -1,22 +1,20 @@
-import { CreditCard, FileText, Phone, X } from "lucide-react-native";
-import React, { useRef, useState } from "react";
-import {
-  Modal,
-  PanResponder,
-  Animated as RNAnimated,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { CreditCard, FileText, Phone } from "lucide-react-native";
+import React, { useState } from "react";
+import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BOTTOM_NAV_HEIGHT } from "@/components/navigation/BottomNavBar";
 import type { TableColDef } from "@/components/ui";
-import { AppButton, Badge, Card, RowItem, Table, theme } from "@/components/ui";
+import {
+  AppButton,
+  Badge,
+  Card,
+  RowItem,
+  SwipeDismissModal,
+  Table,
+  theme,
+} from "@/components/ui";
 import { BRAND_COLORS } from "@/constants/colors";
 import { useScrollNav } from "@/hooks/use-scroll-nav";
 
@@ -36,28 +34,7 @@ type MCPR = {
   MobileNo: string;
 };
 
-type SalesForce = { code: string; name: string; position: string };
-
 // ── Static data ─────────────────────────────────────────────────────────────
-
-const TRX_MONTHS = [
-  "January 2026",
-  "February 2026",
-  "March 2026",
-  "April 2026",
-  "May 2026",
-  "June 2026",
-];
-
-const SALES_FORCE_DATA: SalesForce[] = [
-  { code: "SF-001", name: "Santos, Maria L.", position: "Unit Manager" },
-  { code: "SF-002", name: "Cruz, Juan P.", position: "Agent" },
-  { code: "SF-003", name: "Reyes, Ana C.", position: "Senior Agent" },
-  { code: "SF-004", name: "Lim, Kevin T.", position: "Agent" },
-  { code: "SF-005", name: "Garcia, Lara S.", position: "Unit Manager" },
-  { code: "SF-006", name: "Tan, Bernardo A.", position: "Agent" },
-  { code: "SF-007", name: "Rivera, Jose B.", position: "Senior Agent" },
-];
 
 const mcprData: MCPR[] = [
   {
@@ -517,80 +494,7 @@ export default function MCPRScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isTablet = width >= 1024;
-  const isBranch = true;
-
-  // Filter accordion
-  const [accordionOpen, setAccordionOpen] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
-  const [selectedAgent, setSelectedAgent] = useState<SalesForce | null>(null);
-  const [monthModalVisible, setMonthModalVisible] = useState(false);
-  const [agentModalVisible, setAgentModalVisible] = useState(false);
-  const [agentQuery, setAgentQuery] = useState("");
   const [selectedRecord, setSelectedRecord] = useState<MCPR | null>(null);
-
-  // Swipe-to-dismiss gesture
-  const sheetTranslateY = useRef(new RNAnimated.Value(0)).current;
-  // Tracks whether the in-sheet ScrollView is scrolled to the very top.
-  // Only allow the dismiss gesture when it is, to avoid conflicting with scroll.
-  const scrollAtTop = useRef(true);
-
-  const snapBack = () =>
-    RNAnimated.spring(sheetTranslateY, {
-      toValue: 0,
-      useNativeDriver: true,
-      tension: 60,
-      friction: 9,
-    }).start();
-
-  const panResponder = useRef(
-    PanResponder.create({
-      // Never steal a touch on start — let taps reach children (X button, etc.)
-      onStartShouldSetPanResponder: () => false,
-      onStartShouldSetPanResponderCapture: () => false,
-
-      // Non-scroll zones (handle pill, title bar, footer): claim any downward move
-      onMoveShouldSetPanResponder: (_, { dy, dx }) =>
-        dy > 8 && dy > Math.abs(dx),
-
-      // ScrollView zone: use capture phase so we override the ScrollView, but
-      // only when the content is already at the top and the swipe is clearly downward
-      onMoveShouldSetPanResponderCapture: (_, { dy, dx }) =>
-        scrollAtTop.current && dy > 12 && dy > Math.abs(dx) * 1.5,
-
-      onPanResponderMove: (_, { dy }) => {
-        if (dy > 0) sheetTranslateY.setValue(dy);
-      },
-
-      onPanResponderRelease: (_, { dy, vy }) => {
-        if (dy > 120 || vy > 0.5) {
-          // Fast spring off-screen then close
-          RNAnimated.spring(sheetTranslateY, {
-            toValue: 1000,
-            useNativeDriver: true,
-            tension: 50,
-            friction: 8,
-          }).start(() => {
-            sheetTranslateY.setValue(0);
-            setSelectedRecord(null);
-          });
-        } else {
-          snapBack();
-        }
-      },
-
-      // Snap back if the OS cancels the gesture (e.g. incoming call)
-      onPanResponderTerminate: snapBack,
-    }),
-  ).current;
-
-  const filteredAgents = SALES_FORCE_DATA.filter(
-    (a) =>
-      a.name.toLowerCase().includes(agentQuery.toLowerCase()) ||
-      a.code.toLowerCase().includes(agentQuery.toLowerCase()),
-  );
-
-  const totalInstAmt = mcprData.reduce((s, r) => s + r.InstAmt, 0);
-  const totalSIAmount = mcprData.reduce((s, r) => s + r.SIAmount, 0);
 
   return (
     <>
@@ -627,28 +531,6 @@ export default function MCPRScreen() {
               </Text>
             </View>
           </Card>
-
-          {isTablet && (
-            <Card
-              title="Total Inst. Amount"
-              subtitle="Sum of all filtered records"
-              style={{ flex: 1, marginBottom: 0 }}
-              bodyStyle={{ paddingVertical: 12 }}
-            >
-              <RowItem label="Total" value={fmt$(totalInstAmt)} dots={false} />
-            </Card>
-          )}
-
-          {isTablet && (
-            <Card
-              title="Total SI Amount"
-              subtitle="Sum of all filtered records"
-              style={{ flex: 1, marginBottom: 0 }}
-              bodyStyle={{ paddingVertical: 12 }}
-            >
-              <RowItem label="Total" value={fmt$(totalSIAmount)} dots={false} />
-            </Card>
-          )}
         </View>
 
         <Table<MCPR>
@@ -679,217 +561,96 @@ export default function MCPRScreen() {
         </AppButton>
       </Animated.ScrollView>
 
-      {/* MCPR record detail bottom sheet */}
-      <Modal
+      {/* MCPR record detail — bottom sheet on phone, right sidebar on tablet+ */}
+      <SwipeDismissModal
         visible={selectedRecord !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setSelectedRecord(null)}
+        onDismiss={() => setSelectedRecord(null)}
+        title="Account List"
+        sheetWidth={480}
       >
-        <View
-          style={[
-            styles.bsContainer,
-            width >= 768 && { alignItems: "center", justifyContent: "center" },
-          ]}
-        >
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={() => setSelectedRecord(null)}
-          />
+        {selectedRecord &&
+          (() => {
+            const {
+              color: agColor,
+              bg: agBg,
+              label: agLabel,
+            } = agingStyle(selectedRecord.Aging);
+            return (
+              <View style={styles.bsScroll}>
+                {/* ── Light Info tile ────────────────────────────── */}
+                <View style={styles.bsTile}>
+                  <View style={styles.bsTileTop}>
+                    <Text style={styles.bsTileLpa}>{selectedRecord.LPANo}</Text>
+                    <Badge
+                      label={
+                        selectedRecord.Aging === 0
+                          ? agLabel
+                          : `${selectedRecord.Aging} Days`
+                      }
+                      color={agColor}
+                      backgroundColor={agBg}
+                    />
+                  </View>
+                  <Text style={styles.bsTileName}>
+                    {selectedRecord.PlanholderName}
+                  </Text>
+                </View>
 
-          <RNAnimated.View
-            style={[
-              styles.bsSheet,
-              {
-                backgroundColor: theme.color.bg,
-                transform: [{ translateY: sheetTranslateY }],
-                ...(width >= 768
-                  ? { width: 480, borderRadius: 20, marginBottom: 40 }
-                  : { borderTopLeftRadius: 20, borderTopRightRadius: 20 }),
-              },
-            ]}
-            {...panResponder.panHandlers}
-          >
-            {/* Handle pill */}
-            <View style={styles.bsPillRow}>
-              <View style={styles.bsHandle} />
-            </View>
+                {/* ── Card 1: Plan Information ───────────────────── */}
+                <Card
+                  title="Plan Information"
+                  style={styles.bsCard}
+                  icon={FileText}
+                >
+                  <RowItem label="Plan Code" value={selectedRecord.PlanCode} />
+                  <RowItem
+                    label="Installment No."
+                    value={String(selectedRecord.InstallmentNo)}
+                  />
+                  <RowItem
+                    label="Due Date"
+                    value={fmtDate(selectedRecord.DueDate)}
+                  />
+                </Card>
 
-            {/* Title bar */}
-            <View style={styles.bsHandleRow}>
-              <Text style={styles.bsTitle}>ACCOUNT LIST</Text>
-              <TouchableOpacity
-                style={styles.bsCloseBtn}
-                onPress={() => setSelectedRecord(null)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <X size={16} color={theme.color.muted} strokeWidth={2.5} />
-              </TouchableOpacity>
-            </View>
+                {/* ── Card 2: Financial Details ──────────────────── */}
+                <Card
+                  title="Financial Details"
+                  style={styles.bsCard}
+                  icon={CreditCard}
+                >
+                  <RowItem
+                    label="Installment Amount"
+                    value={fmt$(selectedRecord.InstAmt)}
+                  />
+                  <RowItem
+                    label="SI Amount"
+                    value={fmt$(selectedRecord.SIAmount)}
+                  />
+                  <RowItem
+                    label="Comm Q30"
+                    value={fmtDec(selectedRecord.CommQ30)}
+                  />
+                  <RowItem
+                    label="Q.NCom"
+                    value={fmtDec(selectedRecord.QNCom)}
+                  />
+                </Card>
 
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              scrollEventThrottle={16}
-              onScroll={({ nativeEvent }) => {
-                scrollAtTop.current = nativeEvent.contentOffset.y <= 2;
-              }}
-              contentContainerStyle={[styles.bsScroll, { paddingBottom: 8 }]}
-            >
-              {selectedRecord &&
-                (() => {
-                  const {
-                    color: agColor,
-                    bg: agBg,
-                    label: agLabel,
-                  } = agingStyle(selectedRecord.Aging);
-                  return (
-                    <>
-                      {/* ── Light Info tile ────────────────────────────── */}
-                      <View style={styles.bsTile}>
-                        <View style={styles.bsTileTop}>
-                          <Text style={styles.bsTileLpa}>
-                            {selectedRecord.LPANo}
-                          </Text>
-                          <Badge
-                            label={
-                              selectedRecord.Aging === 0
-                                ? agLabel
-                                : `${selectedRecord.Aging} Days`
-                            }
-                            color={agColor}
-                            backgroundColor={agBg}
-                          />
-                        </View>
-                        <Text style={styles.bsTileName}>
-                          {selectedRecord.PlanholderName}
-                        </Text>
-                      </View>
-
-                      {/* ── Card 1: Plan Information ───────────────────── */}
-                      <Card
-                        title="Plan Information"
-                        style={styles.bsCard}
-                        icon={FileText}
-                      >
-                        <RowItem
-                          label="Plan Code"
-                          value={selectedRecord.PlanCode}
-                        />
-                        <RowItem
-                          label="Installment No."
-                          value={String(selectedRecord.InstallmentNo)}
-                        />
-                        <RowItem
-                          label="Due Date"
-                          value={fmtDate(selectedRecord.DueDate)}
-                        />
-                      </Card>
-
-                      {/* ── Card 2: Financial Details ──────────────────── */}
-                      <Card
-                        title="Financial Details"
-                        style={styles.bsCard}
-                        icon={CreditCard}
-                      >
-                        <RowItem
-                          label="Installment Amount"
-                          value={fmt$(selectedRecord.InstAmt)}
-                        />
-                        <RowItem
-                          label="SI Amount"
-                          value={fmt$(selectedRecord.SIAmount)}
-                        />
-                        <RowItem
-                          label="Comm Q30"
-                          value={fmtDec(selectedRecord.CommQ30)}
-                        />
-                        <RowItem
-                          label="Q.NCom"
-                          value={fmtDec(selectedRecord.QNCom)}
-                        />
-                      </Card>
-
-                      {/* ── Card 3: Contact ────────────────────────────── */}
-                      <Card title="Contact" style={styles.bsCard} icon={Phone}>
-                        <RowItem
-                          label="Mobile No."
-                          value={selectedRecord.MobileNo}
-                        />
-                      </Card>
-                    </>
-                  );
-                })()}
-            </ScrollView>
-
-            {/* Fixed footer */}
-            <View
-              style={[
-                styles.bsFooter,
-                { paddingBottom: Math.max(insets.bottom + 8, 16) },
-              ]}
-            >
-              <Text style={styles.bsFooterText}>↓ Swipe down to dismiss</Text>
-            </View>
-          </RNAnimated.View>
-        </View>
-      </Modal>
+                {/* ── Card 3: Contact ────────────────────────────── */}
+                <Card title="Contact" style={styles.bsCard} icon={Phone}>
+                  <RowItem label="Mobile No." value={selectedRecord.MobileNo} />
+                </Card>
+              </View>
+            );
+          })()}
+      </SwipeDismissModal>
     </>
   );
 }
 
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 12 },
-
-  // Filter accordion
-  accordion: {
-    borderRadius: theme.radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    overflow: "hidden",
-  },
-  accordionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 14,
-  },
-  accordionLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    flex: 1,
-  },
-  accordionIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  accordionTitle: { fontSize: 14, fontWeight: "700" },
-  accordionSub: { fontSize: 11, marginTop: 1 },
-  accordionBody: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    padding: 14,
-    gap: 10,
-  },
-  filterRowPhone: { gap: 10 },
-  filterRowTablet: { flexDirection: "row", gap: 12 },
-  selectField: {
-    borderRadius: theme.radius.sm,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 4,
-    flex: 1,
-  },
-  selectLabel: { fontSize: 10, fontWeight: "600", letterSpacing: 0.3 },
-  selectInner: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  selectValue: { fontSize: 13, flex: 1 },
 
   // Summary cards
   cardsPhone: { gap: 10 },
@@ -901,107 +662,7 @@ const styles = StyleSheet.create({
   },
   accountCount: { fontSize: 38, fontWeight: "900", lineHeight: 52 },
 
-  // Modals
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  pickerSheet: { borderRadius: 16, overflow: "hidden", paddingTop: 4 },
-  modalTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 10,
-  },
-  pickerRow: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  pickerRowText: { fontSize: 14 },
-  lookupSheet: { borderRadius: 16, overflow: "hidden", maxHeight: "80%" },
-  lookupHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  lookupSearch: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginHorizontal: 12,
-    marginVertical: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  lookupSearchInput: { flex: 1, fontSize: 13, padding: 0 },
-  colHeader: {
-    flexDirection: "row",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  colText: {
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 0.3,
-    textTransform: "uppercase",
-  },
-  lookupRow: {
-    flexDirection: "row",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  lookupCell: { fontSize: 12 },
-  emptyText: { textAlign: "center", padding: 24, fontSize: 13 },
-
-  // Bottom sheet
-  bsContainer: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.5)",
-  },
-  bsSheet: {
-    overflow: "hidden",
-    maxHeight: "88%",
-  },
-  bsPillRow: {
-    alignItems: "center",
-    paddingTop: 10,
-    paddingBottom: 4,
-  },
-  bsHandleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  bsHandle: {
-    width: 36,
-    height: 4,
-    backgroundColor: theme.color.border,
-    borderRadius: 2,
-  },
-  bsCloseBtn: {
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: theme.radius.full,
-    backgroundColor: theme.color.card,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-  },
+  // Record detail sheet content
   bsScroll: {
     paddingHorizontal: 16,
     paddingTop: 4,
@@ -1035,23 +696,5 @@ const styles = StyleSheet.create({
 
     lineHeight: 26,
   },
-  bsTitle: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: theme.color.muted,
-    letterSpacing: 0.5,
-  },
   bsCard: { marginBottom: 12 },
-  bsFooter: {
-    alignItems: "center",
-    paddingTop: 6,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.color.border,
-    backgroundColor: theme.color.bg,
-  },
-  bsFooterText: {
-    fontSize: 11,
-    color: theme.color.muted,
-    letterSpacing: 0.3,
-  },
 });
