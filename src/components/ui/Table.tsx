@@ -40,6 +40,9 @@ export type TableColDef<T> = {
 
 export type TableProps<T> = {
   title?: string;
+  subtitle?: string;
+  /** Rendered top-right of the title/subtitle, e.g. a "Delete All" button. */
+  headerAction?: React.ReactNode;
   data: T[];
   columns: TableColDef<T>[];
   keyExtractor: (row: T) => string;
@@ -69,6 +72,8 @@ const DEFAULT_PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
 
 export function Table<T>({
   title,
+  subtitle,
+  headerAction,
   data,
   columns,
   keyExtractor,
@@ -173,8 +178,22 @@ export function Table<T>({
   return (
     <View style={[s.outer, style]}>
       {/* 1. Title */}
-      {!!title && (
-        <Text style={[s.title, { color: theme.color.ink }]}>{title}</Text>
+      {(!!title || !!subtitle || !!headerAction) && (
+        <View style={s.titleRow}>
+          <View style={{ flex: 1 }}>
+            {!!title && (
+              <Text style={[s.title, { color: theme.color.ink }]}>
+                {title}
+              </Text>
+            )}
+            {!!subtitle && (
+              <Text style={[s.subtitle, { color: theme.color.muted }]}>
+                {subtitle}
+              </Text>
+            )}
+          </View>
+          {headerAction}
+        </View>
       )}
 
       {/* 2. Search bar + 3. Columns button */}
@@ -677,10 +696,20 @@ const s = StyleSheet.create({
     gap: 8,
   },
 
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
   title: {
     fontSize: 16,
     fontWeight: "700",
     letterSpacing: -0.2,
+  },
+  subtitle: {
+    fontSize: 12,
+    marginTop: 1,
   },
 
   // Search row

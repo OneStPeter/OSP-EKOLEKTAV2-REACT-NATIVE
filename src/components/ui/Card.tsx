@@ -7,6 +7,8 @@ interface CardProps {
   iconColor?: string;
   title?: string;
   subtitle?: string;
+  /** Rendered top-right of the header, e.g. a print/share button. */
+  headerAction?: React.ReactNode;
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   bodyStyle?: StyleProp<ViewStyle>;
@@ -17,11 +19,12 @@ export function Card({
   iconColor = theme.color.body,
   title,
   subtitle,
+  headerAction,
   children,
   style,
   bodyStyle,
 }: CardProps) {
-  const showHeader = !!(title || Icon);
+  const showHeader = !!(title || Icon || headerAction);
   return (
     <View style={[s.card, style]}>
       {showHeader && (
@@ -37,6 +40,7 @@ export function Card({
               {subtitle ? <Text style={s.subtitle}>{subtitle}</Text> : null}
             </View>
           )}
+          {headerAction}
         </View>
       )}
       <View style={[s.body, bodyStyle]}>{children}</View>

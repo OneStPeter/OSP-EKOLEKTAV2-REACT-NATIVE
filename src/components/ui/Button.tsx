@@ -20,6 +20,8 @@ interface AppButtonProps {
   activeOpacity?: number;
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
 }
 
 const VARIANT: Record<ButtonVariant, { bg: string; text: string }> = {
@@ -47,6 +49,8 @@ export function AppButton({
   activeOpacity = 0.8,
   style,
   textStyle,
+  leftIcon,
+  rightIcon,
 }: AppButtonProps) {
   const v = VARIANT[variant];
   const sz = SIZE[size];
@@ -57,22 +61,26 @@ export function AppButton({
       disabled={disabled}
       style={[
         {
+          flexDirection: "row",
           backgroundColor: v.bg,
           paddingVertical: sz.py,
           paddingHorizontal: sz.px,
           borderRadius: sz.borderRadius,
           alignItems: "center",
           justifyContent: "center",
+          gap: leftIcon || rightIcon ? 6 : 0,
           opacity: disabled ? 0.5 : 1,
         },
         style,
       ]}
     >
+      {leftIcon}
       <Text
         style={[{ color: v.text, fontWeight: "700", fontSize: sz.fontSize }, textStyle]}
       >
         {children}
       </Text>
+      {rightIcon}
     </TouchableOpacity>
   );
 }

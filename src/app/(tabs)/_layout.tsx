@@ -28,6 +28,15 @@ export default function TabsLayout() {
             <Tabs.Screen name="index" options={{ title: "index" }} />
             <Tabs.Screen name="mcpr" options={{ title: "MCPR" }} />
             <Tabs.Screen name="payment" options={{ title: "Payment" }} />
+            <Tabs.Screen name="viewDrs" options={{ title: "View DRS" }} />
+            <Tabs.Screen
+              name="encodeDeposit"
+              options={{ title: "Encode Deposit" }}
+            />
+            <Tabs.Screen
+              name="viewDeposit"
+              options={{ title: "View Deposit" }}
+            />
             <Tabs.Screen name="disbursement" options={{ title: "Disbursement" }} />
             <Tabs.Screen
               name="planholderProfile"

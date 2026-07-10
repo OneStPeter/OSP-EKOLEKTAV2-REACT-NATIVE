@@ -39,8 +39,8 @@ import {
 
 const ProfileImage = require("../../../assets/images/Profile.png");
 
-import { useNav } from "@/context/nav-context";
 import { BRAND_COLORS } from "@/constants/colors";
+import { useNav } from "@/context/nav-context";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -146,15 +146,15 @@ const ITEMS: NavItemDef[] = [
     icon: PaymentIcon,
     activeIcon: PaymentActiveIcon,
     subItems: [
-      { label: "Encode Payment", path: "/payment/encode-payment" },
-      { label: "View DRS", path: "/payment/view-drs" },
+      { label: "Encode Payment", path: "/payment" },
+      { label: "View DRS", path: "/viewDrs" },
       {
         label: "Encode Validated Deposit Slip",
-        path: "/payment/encode-validated-deposit",
+        path: "/encodeDeposit",
       },
       {
         label: "View Encoded Deposit Slip",
-        path: "/payment/view-validated-deposit",
+        path: "/viewDeposit",
       },
       { label: "Request Credit Memo", path: "/payment/credit-memo" },
     ],

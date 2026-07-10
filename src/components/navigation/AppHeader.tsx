@@ -19,6 +19,8 @@ import { useNav } from "@/context/nav-context";
 const SCREEN_TITLES: Record<string, string> = {
   mcpr: "MCPR",
   payment: "Payment",
+  viewDrs: "View DRS",
+  encodeDeposit: "Encode Deposit",
   disbursement: "Disbursement",
   planholderProfile: "Planholder Profile",
   profile: "Profile",
