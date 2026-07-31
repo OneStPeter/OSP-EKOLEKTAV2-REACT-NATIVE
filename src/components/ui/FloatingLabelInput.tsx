@@ -28,7 +28,6 @@ import {
   TextInputProps,
   TextStyle,
   TouchableOpacity,
-  useColorScheme,
   View,
   ViewStyle,
 } from "react-native";
@@ -232,9 +231,7 @@ function FloatingLabelInputImpl(
   }: FloatingLabelInputProps,
   ref: React.ForwardedRef<TextInput>,
 ) {
-  const systemScheme = useColorScheme();
-  const resolvedScheme =
-    colorScheme === "auto" ? (systemScheme ?? "light") : colorScheme;
+  const resolvedScheme = colorScheme === "auto" ? "light" : colorScheme;
   const palette: Palette =
     resolvedScheme === "dark" ? DARK_PALETTE : LIGHT_PALETTE;
 

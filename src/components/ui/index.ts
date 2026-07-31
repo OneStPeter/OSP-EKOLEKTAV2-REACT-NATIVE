@@ -11,6 +11,8 @@ export { AppButton } from "./Button";
 export { ConfirmModal } from "./ConfirmModal";
 export type { ConfirmModalProps } from "./ConfirmModal";
 export { Card } from "./Card";
+export { Checkbox } from "./Checkbox";
+export type { CheckboxProps } from "./Checkbox";
 export { EmptyState } from "./EmptyState";
 export { FloatingLabelInput } from "./FloatingLabelInput";
 export type {

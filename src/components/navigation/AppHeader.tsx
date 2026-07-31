@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  useColorScheme,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -73,8 +72,7 @@ export function AppHeader({
 }: Props) {
   const { toggleDrawer } = useNav();
   const insets = useSafeAreaInsets();
-  const scheme = useColorScheme();
-  const c = C[scheme === "dark" ? "dark" : "light"];
+  const c = C.light;
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
 

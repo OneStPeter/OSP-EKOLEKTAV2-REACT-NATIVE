@@ -1,19 +1,33 @@
 import { Tabs } from "expo-router";
 import React from "react";
-import { useColorScheme, View } from "react-native";
+import { View } from "react-native";
 
+import { AlertModal } from "@/components/ui/AlertModal";
 import { ChatbotFAB } from "@/components/chatbot/ChatbotFAB";
 import { AppHeader } from "@/components/navigation/AppHeader";
 import { BottomNavBar } from "@/components/navigation/BottomNavBar";
 import { SidebarDrawer } from "@/components/navigation/SidebarDrawer";
-import { NavProvider } from "@/context/nav-context";
+import { NavProvider, useNav } from "@/context/nav-context";
 import { UserProfileProvider } from "@/context/user-profile-context";
 
 const BG = { light: "#f0fdf4", dark: "#030f0b" };
 
+function UnavailablePageAlert() {
+  const { unavailableLabel, dismissUnavailable } = useNav();
+
+  return (
+    <AlertModal
+      visible={unavailableLabel !== null}
+      onDismiss={dismissUnavailable}
+      variant="info"
+      title="Not Available"
+      message={`This ${unavailableLabel ?? "page"} page is currently not available.`}
+    />
+  );
+}
+
 export default function TabsLayout() {
-  const scheme = useColorScheme();
-  const bg = BG[scheme === "dark" ? "dark" : "light"];
+  const bg = BG.light;
 
   return (
     <UserProfileProvider>
@@ -50,6 +64,7 @@ export default function TabsLayout() {
           <BottomNavBar />
           <SidebarDrawer />
           <ChatbotFAB />
+          <UnavailablePageAlert />
         </View>
       </NavProvider>
     </UserProfileProvider>

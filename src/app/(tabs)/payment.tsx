@@ -14,6 +14,7 @@ import {
   Trash2,
   User,
 } from "lucide-react-native";
+import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -50,6 +51,7 @@ import {
   theme,
   useAlertModal,
 } from "@/components/ui";
+import { DRS_ITEMS, type DrsItem } from "@/data/drs";
 import { useScrollNav } from "@/hooks/use-scroll-nav";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -212,6 +214,10 @@ function planholderDisplayLabel(item: PlanholderLookupItem) {
   return `PLAN: ${item.LPANo} — ${fullPlanholderName(item)}`;
 }
 
+function generateDrsNo() {
+  return `DRS${Math.floor(100000000000 + Math.random() * 900000000000)}`;
+}
+
 function getNextInstNo(payments: PaymentRecord[], lpaNo: string) {
   const rows = payments.filter((p) => p.LPANo === lpaNo);
   if (rows.length === 0) return 1;
@@ -251,6 +257,7 @@ export default function EncodePaymentScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
+  const router = useRouter();
 
   const [selectedPlanholder, setSelectedPlanholder] =
     useState<PlanholderLookupItem | null>(null);
@@ -281,9 +288,7 @@ export default function EncodePaymentScreen() {
 
   const [currentStep, setCurrentStep] = useState(0);
 
-  const [drsNo] = useState(
-    () => `DRS${Math.floor(100000000000 + Math.random() * 900000000000)}`,
-  );
+  const [drsNo, setDrsNo] = useState(() => generateDrsNo());
 
   const computed = useMemo(
     () => computePayments(installmentAmount),
@@ -422,10 +427,48 @@ export default function EncodePaymentScreen() {
 
   function handleGenerateDrs() {
     setConfirmDrsVisible(false);
+
+    const newDrs: DrsItem = {
+      id: String(Math.max(0, ...DRS_ITEMS.map((d) => Number(d.id))) + 1),
+      name: drsNo,
+      SlipDate: todayIso(),
+      Status: "Pending",
+      payments: payments.map((p) => ({
+        SI: p.SI,
+        Name: p.Name,
+        InstNo: p.InstNo,
+        PayClass: p.PayClass,
+        SIAmount: p.SIAmount,
+        Commission: p.Commission,
+        TransportationExpense: p.TransportationExpense,
+      })),
+    };
+    DRS_ITEMS.unshift(newDrs);
+
+    const paymentCount = payments.length;
+    const totalAmount = drsTotals.amount;
+
+    setSelectedPlanholder(null);
+    setPayments([]);
+    setCurrentStep(0);
+    setPaymentClass("DC");
+    setPaymentType("CH");
+    setSiExtension("");
+    setSiDate(todayIso());
+    setChequeData({
+      accountNumber: "",
+      accountName: "",
+      bankName: "",
+      bankBranch: "",
+      chequeNumber: "",
+    });
+    setDrsNo(generateDrsNo());
+
     showAlert(
       "success",
       "DRS Generated",
-      `Digital Remittance Slip prepared for ${payments.length} payment(s) totaling ${fmt$(drsTotals.amount)}.`,
+      `Digital Remittance Slip prepared for ${paymentCount} payment(s) totaling ${fmt$(totalAmount)}.`,
+      () => router.push("/viewDrs" as never),
     );
   }
 

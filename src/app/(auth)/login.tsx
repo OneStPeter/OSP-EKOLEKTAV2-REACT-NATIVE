@@ -1,6 +1,13 @@
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { ArrowRight } from "lucide-react-native";
+import { useRouter } from "expo-router";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CreditCard,
+  Phone,
+  User,
+} from "lucide-react-native";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -16,10 +23,7 @@ import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { EyeToggle, FormInput } from "@/components/auth/FormInput";
-import {
-  SocialButton,
-  type SocialProvider,
-} from "@/components/auth/SocialButton";
+import { palette } from "@/components/ui/theme";
 import { useAuth } from "@/hooks/use-auth";
 
 // ─── Brand colours ────────────────────────────────────────────────────────────
@@ -62,8 +66,31 @@ function Checkbox({
   );
 }
 
+// ─── Circular shortcut button ─────────────────────────────────────────────────
+function ShortcutButton({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={styles.shortcut}
+      onPress={onPress}
+      activeOpacity={0.75}
+    >
+      <View style={styles.shortcutCircle}>{icon}</View>
+      <Text style={styles.shortcutLabel}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
 // ─── Screen ──────────────────────────────────────────────────────────────────
 export default function LoginScreen() {
+  const router = useRouter();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const isSmallScreen = windowHeight < 700;
   const isTabletPortrait = windowWidth >= 768 && windowHeight > windowWidth;
@@ -96,9 +123,10 @@ export default function LoginScreen() {
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       errors.email = "Enter a valid email address.";
     }
+    const skipPasswordLength = email.trim() === "sa2@stpeter.com.ph";
     if (!password) {
       errors.password = "Password is required.";
-    } else if (password.length < 6) {
+    } else if (!skipPasswordLength && password.length < 6) {
       errors.password = "Password must be at least 6 characters.";
     }
     setFieldErrors(errors);
@@ -108,6 +136,18 @@ export default function LoginScreen() {
   function handleSubmit() {
     if (!validate()) return;
     signIn({ email: email.trim(), password, remember });
+  }
+
+  function handleBack() {
+    router.push("/(auth)/quick-sign-in");
+  }
+
+  function handlePlanholderPortal() {
+    router.push("/(tabs)/planholderProfile");
+  }
+
+  function handlePayMyPlan() {
+    router.push("/(tabs)/payment");
   }
 
   return (
@@ -172,9 +212,26 @@ export default function LoginScreen() {
                 entering={FadeInUp.duration(450).delay(120)}
                 style={[
                   styles.card,
-                  { paddingTop: cardPaddingV, paddingBottom: cardPaddingV, gap: cardGap },
+                  {
+                    paddingTop: cardPaddingV,
+                    paddingBottom: cardPaddingV,
+                    gap: cardGap,
+                  },
                 ]}
               >
+                {/* Back to Quick Sign In */}
+                <Animated.View entering={FadeInUp.duration(400).delay(160)}>
+                  <TouchableOpacity
+                    style={styles.backRow}
+                    onPress={handleBack}
+                    activeOpacity={0.7}
+                    hitSlop={8}
+                  >
+                    <ArrowLeft size={16} color={palette.muted} />
+                    <Text style={styles.backText}>Back</Text>
+                  </TouchableOpacity>
+                </Animated.View>
+
                 {/* Card header */}
                 <Animated.View entering={FadeInUp.duration(400).delay(200)}>
                   <Text style={styles.cardTitle}>Welcome back</Text>
@@ -278,12 +335,12 @@ export default function LoginScreen() {
                   </Animated.View>
 
                   {/* Divider */}
-                  <Animated.View entering={FadeInUp.duration(400).delay(470)}>
+                  {/* <Animated.View entering={FadeInUp.duration(400).delay(470)}>
                     <Divider />
-                  </Animated.View>
+                  </Animated.View> */}
 
                   {/* Social buttons */}
-                  <Animated.View
+                  {/* <Animated.View
                     entering={FadeInUp.duration(400).delay(510)}
                     style={styles.socialRow}
                   >
@@ -298,10 +355,32 @@ export default function LoginScreen() {
                         />
                       ),
                     )}
-                  </Animated.View>
+                  </Animated.View> */}
                 </View>
               </Animated.View>
             </View>
+
+            {/* ── Shortcuts ── */}
+            <Animated.View
+              entering={FadeInUp.duration(400).delay(500)}
+              style={styles.shortcutsRow}
+            >
+              <ShortcutButton
+                icon={<Phone size={20} color={GREEN_MID} />}
+                label="Contact Us"
+                onPress={() => {}}
+              />
+              <ShortcutButton
+                icon={<User size={20} color={GREEN_MID} />}
+                label="Planholder Portal"
+                onPress={handlePlanholderPortal}
+              />
+              <ShortcutButton
+                icon={<CreditCard size={20} color={GREEN_MID} />}
+                label="Pay My Plan"
+                onPress={handlePayMyPlan}
+              />
+            </Animated.View>
 
             {/* ── Copyright ── */}
             <Animated.View
@@ -407,6 +486,17 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: "center",
     justifyContent: "center",
+  },
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 2,
+  },
+  backText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: palette.muted,
   },
   cardTitle: {
     fontSize: 24,
@@ -529,6 +619,39 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     justifyContent: "center",
+  },
+
+  // ── Shortcuts ──
+  shortcutsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 28,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+  },
+  shortcut: {
+    alignItems: "center",
+    gap: 6,
+    width: 84,
+  },
+  shortcutCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#4b4b4b",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  shortcutLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: palette.body,
+    textAlign: "center",
   },
 
   // ── Footer ──

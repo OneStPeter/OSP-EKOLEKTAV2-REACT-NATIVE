@@ -9,7 +9,6 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  useColorScheme,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -124,8 +123,7 @@ export function BottomNavBar() {
   const { bottomNavY, navigateTo } = useNav();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
-  const scheme = useColorScheme();
-  const c = C[scheme === "dark" ? "dark" : "light"];
+  const c = C.light;
   const { imageUri } = useUserProfile();
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
@@ -164,7 +162,7 @@ export function BottomNavBar() {
                 styles.tab,
                 active && [styles.tabActive, { backgroundColor: c.bg }],
               ]}
-              onPress={() => navigateTo(tab.path)}
+              onPress={() => navigateTo(tab.path, tab.label)}
               accessibilityRole="tab"
               accessibilityLabel={tab.label}
               accessibilityState={{ selected: active }}

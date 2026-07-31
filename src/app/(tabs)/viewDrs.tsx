@@ -186,9 +186,12 @@ export default function ViewDrsScreen() {
     });
   }
 
-  function handleAddDisbursement() {
+  function handleAddDisbursement(item: DrsItem) {
     setSelected(null);
-    router.push("/disbursement" as never);
+    router.push({
+      pathname: "/disbursement" as never,
+      params: { drs: JSON.stringify(item) },
+    });
   }
 
   return (
@@ -418,7 +421,7 @@ export default function ViewDrsScreen() {
                   <AppButton
                     variant="secondary"
                     size="lg"
-                    onPress={handleAddDisbursement}
+                    onPress={() => handleAddDisbursement(selected)}
                   >
                     Add Disbursement
                   </AppButton>

@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Banknote, Search } from "lucide-react-native";
+import { Banknote, PhilippinePeso, Search } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Animated from "react-native-reanimated";
@@ -22,7 +22,6 @@ import {
   useAlertModal,
   type FloatingLabelSelectOption,
 } from "@/components/ui";
-import { useScrollNav } from "@/hooks/use-scroll-nav";
 import {
   DRS_ITEMS,
   drsAmount,
@@ -30,6 +29,7 @@ import {
   type DrsItem,
   type DrsPaymentRow,
 } from "@/data/drs";
+import { useScrollNav } from "@/hooks/use-scroll-nav";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -147,6 +147,7 @@ export default function EncodeDepositScreen() {
   }, [drs]);
   const [depositDate, setDepositDate] = useState(new Date());
   const [accountNumber, setAccountNumber] = useState("2010073262");
+  const [amount, setAmount] = useState(0);
   const [bankBranch, setBankBranch] = useState("");
   const [confirmSaveVisible, setConfirmSaveVisible] = useState(false);
   const { alertState, showAlert, dismissAlert } = useAlertModal();
@@ -160,13 +161,21 @@ export default function EncodeDepositScreen() {
     [selectedDrs],
   );
 
+  useEffect(() => {
+    setAmount(selectedDrs ? drsAmount(selectedDrs) : 0);
+  }, [selectedDrs]);
+
   function handleSelectDrs(item: DrsItem | null) {
     if (!item) {
       setSelectedDrs(null);
       return;
     }
     if (item.id !== eligibleId) {
-      showAlert("warning", "Encode Deposit", "Please encode the first created DRS.");
+      showAlert(
+        "warning",
+        "Encode Deposit",
+        "Please encode the first created DRS.",
+      );
       return;
     }
     setSelectedDrs(item);
@@ -247,9 +256,12 @@ export default function EncodeDepositScreen() {
                 />
                 <FloatingLabelInput
                   label="Amount"
-                  value={fmt$(drsAmount(selectedDrs))}
-                  onChangeText={() => {}}
-                  disabled
+                  type="number"
+                  value={String(amount)}
+                  onChangeText={(t) => setAmount(Number(t) || 0)}
+                  leftIcon={
+                    <PhilippinePeso size={14} color={theme.color.body} />
+                  }
                   containerStyle={isTablet ? styles.formGridItem : undefined}
                 />
                 <FloatingLabelInput
@@ -288,7 +300,11 @@ export default function EncodeDepositScreen() {
                 </View>
               )}
 
-              <AppButton size="lg" style={{ marginTop: 14 }} onPress={handleSave}>
+              <AppButton
+                size="lg"
+                style={{ marginTop: 14 }}
+                onPress={handleSave}
+              >
                 Save Deposit
               </AppButton>
             </>

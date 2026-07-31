@@ -9,7 +9,6 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  useColorScheme,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -37,10 +36,10 @@ import {
   PlanMgmtIcon,
 } from "./navIcons";
 
-const ProfileImage = require("../../../assets/images/Profile.png");
-
 import { BRAND_COLORS } from "@/constants/colors";
 import { useNav } from "@/context/nav-context";
+
+const ProfileImage = require("../../../assets/images/Profile.png");
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -195,7 +194,7 @@ const ITEMS: NavItemDef[] = [
 interface NavItemRowProps {
   item: NavItemDef;
   pathname: string;
-  navigateTo: (path: string) => void;
+  navigateTo: (path: string, label?: string) => void;
   c: (typeof C)["light"];
 }
 
@@ -276,7 +275,9 @@ function NavItemRow({ item, pathname, navigateTo, c }: NavItemRowProps) {
             borderLeftWidth: 3,
           },
         ]}
-        onPress={hasSubItems ? toggle : () => navigateTo(item.path!)}
+        onPress={
+          hasSubItems ? toggle : () => navigateTo(item.path!, item.label)
+        }
         accessibilityRole="menuitem"
         accessibilityState={
           hasSubItems ? { expanded: isExpanded } : { selected: isLeafActive }
@@ -335,7 +336,7 @@ function NavItemRow({ item, pathname, navigateTo, c }: NavItemRowProps) {
                         borderRadius: 8,
                       },
                     ]}
-                    onPress={() => navigateTo(sub.path)}
+                    onPress={() => navigateTo(sub.path, sub.label)}
                     accessibilityRole="menuitem"
                     accessibilityState={{ selected: isSubActive }}
                     activeOpacity={0.78}
@@ -377,11 +378,10 @@ export function SidebarDrawer({
 
   function handleSignOut() {
     closeDrawer();
-    router.replace("/(auth)/login");
+    router.replace("/(auth)/quick-sign-in");
   }
   const insets = useSafeAreaInsets();
-  const scheme = useColorScheme();
-  const c = C[scheme === "dark" ? "dark" : "light"];
+  const c = C.light;
   const { width } = useWindowDimensions();
   const drawerWidth = Math.min(Math.round(width * 0.82), 320);
 

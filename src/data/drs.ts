@@ -10,6 +10,7 @@ export type DrsPaymentRow = {
   PayClass: string;
   SIAmount: number;
   Commission: number;
+  TransportationExpense: number;
 };
 
 export type DrsItem = {
@@ -38,6 +39,7 @@ export const DRS_ITEMS: DrsItem[] = [
         PayClass: "NS",
         SIAmount: 2500,
         Commission: 342,
+        TransportationExpense: 76,
       },
       {
         SI: "00000062",
@@ -46,6 +48,7 @@ export const DRS_ITEMS: DrsItem[] = [
         PayClass: "DC",
         SIAmount: 1800,
         Commission: 342,
+        TransportationExpense: 76,
       },
     ],
   },
@@ -62,6 +65,7 @@ export const DRS_ITEMS: DrsItem[] = [
         PayClass: "RI",
         SIAmount: 4200,
         Commission: 342,
+        TransportationExpense: 76,
       },
       {
         SI: "00000059",
@@ -70,6 +74,7 @@ export const DRS_ITEMS: DrsItem[] = [
         PayClass: "NS",
         SIAmount: 2500,
         Commission: 342,
+        TransportationExpense: 76,
       },
       {
         SI: "00000060",
@@ -78,6 +83,7 @@ export const DRS_ITEMS: DrsItem[] = [
         PayClass: "SV",
         SIAmount: 2100,
         Commission: 342,
+        TransportationExpense: 76,
       },
     ],
   },
@@ -94,6 +100,7 @@ export const DRS_ITEMS: DrsItem[] = [
         PayClass: "DC",
         SIAmount: 1900,
         Commission: 342,
+        TransportationExpense: 76,
       },
     ],
   },
@@ -110,6 +117,7 @@ export const DRS_ITEMS: DrsItem[] = [
         PayClass: "NS",
         SIAmount: 2200,
         Commission: 342,
+        TransportationExpense: 76,
       },
       {
         SI: "00000050",
@@ -118,6 +126,7 @@ export const DRS_ITEMS: DrsItem[] = [
         PayClass: "UP",
         SIAmount: 1600,
         Commission: 342,
+        TransportationExpense: 76,
       },
     ],
   },
@@ -134,6 +143,7 @@ export const DRS_ITEMS: DrsItem[] = [
         PayClass: "NS",
         SIAmount: 2300,
         Commission: 342,
+        TransportationExpense: 76,
       },
     ],
   },
