@@ -24,6 +24,8 @@ interface NavContextValue {
   closeDrawer: () => void;
   toggleDrawer: () => void;
   bottomNavY: SharedValue<number>;
+  /** Scroll offset of the focused screen — drives the non-sticky AppHeader. */
+  scrollY: SharedValue<number>;
   navigateTo: (path: string, label?: string) => void;
   unavailableLabel: string | null;
   dismissUnavailable: () => void;
@@ -35,6 +37,7 @@ export function NavProvider({ children }: { children: React.ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [unavailableLabel, setUnavailableLabel] = useState<string | null>(null);
   const bottomNavY = useSharedValue(0);
+  const scrollY = useSharedValue(0);
   const router = useRouter();
 
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
@@ -51,9 +54,10 @@ export function NavProvider({ children }: { children: React.ReactNode }) {
       }
       setDrawerOpen(false);
       bottomNavY.value = 0;
+      scrollY.value = 0;
       router.navigate(path as never);
     },
-    [bottomNavY, router],
+    [bottomNavY, scrollY, router],
   );
 
   return (
@@ -64,6 +68,7 @@ export function NavProvider({ children }: { children: React.ReactNode }) {
         closeDrawer,
         toggleDrawer,
         bottomNavY,
+        scrollY,
         navigateTo,
         unavailableLabel,
         dismissUnavailable,

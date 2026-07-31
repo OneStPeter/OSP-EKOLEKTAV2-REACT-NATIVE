@@ -33,8 +33,6 @@ export default function TabsLayout() {
     <UserProfileProvider>
       <NavProvider>
         <View style={{ flex: 1, backgroundColor: bg }}>
-          <AppHeader />
-
           <Tabs
             screenOptions={{ headerShown: false, lazy: false }}
             tabBar={() => null}
@@ -60,6 +58,10 @@ export default function TabsLayout() {
             {/* Keep explore route accessible but unlisted */}
             <Tabs.Screen name="explore" options={{ href: null }} />
           </Tabs>
+
+          {/* Rendered after Tabs so it paints over the screen content — it is
+              absolutely positioned and scrolls away with it. */}
+          <AppHeader />
 
           <BottomNavBar />
           <SidebarDrawer />

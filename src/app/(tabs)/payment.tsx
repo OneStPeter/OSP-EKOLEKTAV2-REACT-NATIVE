@@ -28,6 +28,7 @@ import {
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { APP_HEADER_HEIGHT } from "@/components/navigation/AppHeader";
 import { BOTTOM_NAV_HEIGHT } from "@/components/navigation/BottomNavBar";
 import type { StepperStep, TableColDef } from "@/components/ui";
 import {
@@ -655,6 +656,7 @@ export default function EncodePaymentScreen() {
         contentContainerStyle={[
           styles.content,
           {
+            paddingTop: APP_HEADER_HEIGHT + insets.top + 16,
             paddingBottom: BOTTOM_NAV_HEIGHT + insets.bottom + 16,
             paddingHorizontal: isTablet ? 24 : 16,
           },

@@ -7,7 +7,7 @@ const HIDE_OFFSET = 100;
 const DURATION = 220;
 
 export function useScrollNav() {
-  const { bottomNavY } = useNav();
+  const { bottomNavY, scrollY } = useNav();
   const lastY = useSharedValue(0);
 
   return useAnimatedScrollHandler({
@@ -17,6 +17,10 @@ export function useScrollNav() {
       const contentH = event.contentSize.height;
       const layoutH = event.layoutMeasurement.height;
       const nearBottom = y + layoutH >= contentH - 32;
+
+      // AppHeader is not sticky — it tracks the scroll offset 1:1 and slides
+      // out of view with the content (AppHeader clamps to its own height).
+      scrollY.value = y > 0 ? y : 0;
 
       if (nearBottom) {
         bottomNavY.value = withTiming(0, { duration: DURATION });

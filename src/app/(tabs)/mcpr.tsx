@@ -4,6 +4,7 @@ import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { APP_HEADER_HEIGHT } from "@/components/navigation/AppHeader";
 import { BOTTOM_NAV_HEIGHT } from "@/components/navigation/BottomNavBar";
 import type { TableColDef } from "@/components/ui";
 import {
@@ -505,6 +506,7 @@ export default function MCPRScreen() {
         contentContainerStyle={[
           styles.content,
           {
+            paddingTop: APP_HEADER_HEIGHT + insets.top + 16,
             paddingBottom: BOTTOM_NAV_HEIGHT + insets.bottom + 16,
             paddingHorizontal: width >= 768 ? 24 : 16,
           },

@@ -36,6 +36,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle } from "react-native-svg";
 
+import { APP_HEADER_HEIGHT } from "@/components/navigation/AppHeader";
 import { BOTTOM_NAV_HEIGHT } from "@/components/navigation/BottomNavBar";
 import {
   AppButton,
@@ -578,6 +579,7 @@ export default function HomeScreen() {
       contentContainerStyle={[
         s.content,
         {
+          paddingTop: APP_HEADER_HEIGHT + insets.top + 16,
           paddingBottom: BOTTOM_NAV_HEIGHT + insets.bottom + 24,
           paddingHorizontal: PADDING_H,
         },

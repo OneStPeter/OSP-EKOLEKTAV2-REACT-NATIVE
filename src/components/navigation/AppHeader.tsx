@@ -10,9 +10,16 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useNav } from "@/context/nav-context";
+
+// Height of the header row, excluding the top safe-area inset. The header is
+// absolutely positioned so it can scroll away with the content, so screens
+// must pad their scroll content by `APP_HEADER_HEIGHT + insets.top`, the same
+// way they pad the bottom for BOTTOM_NAV_HEIGHT.
+export const APP_HEADER_HEIGHT = 60;
 
 // Maps route segment names to display titles. Keep in sync with (tabs)/_layout.tsx options.
 const SCREEN_TITLES: Record<string, string> = {
@@ -70,11 +77,19 @@ export function AppHeader({
   onSearchPress,
   onNotificationPress,
 }: Props) {
-  const { toggleDrawer } = useNav();
+  const { toggleDrawer, scrollY } = useNav();
   const insets = useSafeAreaInsets();
   const c = C.light;
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
+
+  // Slides up with the content until fully off-screen, then stays put — the
+  // header only reappears once the user scrolls back toward the top.
+  const totalHeight = APP_HEADER_HEIGHT + insets.top;
+  const scrollStyle = useAnimatedStyle(() => {
+    const offset = Math.min(Math.max(scrollY.value, 0), totalHeight);
+    return { transform: [{ translateY: -offset }] };
+  });
 
   const segments = useSegments();
   // Last segment is the tab name; fall back to "index" when on the root tab.
@@ -87,7 +102,7 @@ export function AppHeader({
   const badgeCount = Math.min(notificationCount, 99);
 
   return (
-    <View
+    <Animated.View
       style={[
         styles.container,
         {
@@ -95,6 +110,7 @@ export function AppHeader({
           paddingTop: insets.top,
           shadowColor: c.shadow,
         },
+        scrollStyle,
       ]}
     >
       <View style={[styles.row, isTablet && styles.rowTablet]}>
@@ -196,12 +212,16 @@ export function AppHeader({
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
     zIndex: 10,
     ...Platform.select({
       ios: {
