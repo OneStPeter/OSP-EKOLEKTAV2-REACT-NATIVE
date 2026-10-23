@@ -1,74 +1,162 @@
-import { Tabs } from "expo-router";
-import React from "react";
-import { View } from "react-native";
+import { Slot, usePathname, useRouter } from "expo-router";
+import {
+  ClipboardList,
+  CreditCard,
+  FileText,
+  FileX,
+  Home,
+  Wallet,
+} from "lucide-react-native";
+import {
+  AppLayout,
+  DashboardHeaderMobile,
+  MessageDialog,
+  NavigationProvider,
+  type AppUser,
+  type NavigationAdapter,
+  type NavItem,
+} from "osp-ui-kit-native";
+import React, { useMemo, useState } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AlertModal } from "@/components/ui/AlertModal";
-import { ChatbotFAB } from "@/components/chatbot/ChatbotFAB";
-import { AppHeader } from "@/components/navigation/AppHeader";
-import { BottomNavBar } from "@/components/navigation/BottomNavBar";
-import { SidebarDrawer } from "@/components/navigation/SidebarDrawer";
-import { NavProvider, useNav } from "@/context/nav-context";
 import { UserProfileProvider } from "@/context/user-profile-context";
 
-const BG = { light: "#f0fdf4", dark: "#030f0b" };
+// Routes with an implemented screen. Anything else in NAV_ITEMS shows the
+// "not available" prompt instead of routing to an unmatched screen.
+const AVAILABLE_ROUTES = new Set<string>([
+  "/",
+  "/mcpr",
+  "/payment",
+  "/viewDrs",
+  "/encodeDeposit",
+  "/viewDeposit",
+  "/disbursement",
+  "/planholderProfile",
+  "/profile",
+  "/explore",
+]);
 
-function UnavailablePageAlert() {
-  const { unavailableLabel, dismissUnavailable } = useNav();
+const NAV_ITEMS: NavItem[] = [
+  { label: "Home", icon: Home, href: "/", bottomNav: true, bottomNavOrder: 1 },
+  {
+    label: "View MCPR",
+    displayName: "MCPR",
+    icon: FileText,
+    href: "/mcpr",
+    bottomNav: true,
+    bottomNavOrder: 2,
+  },
+  {
+    label: "Payment",
+    icon: CreditCard,
+    subItems: [
+      {
+        label: "Encode Payment",
+        displayName: "Payment",
+        href: "/payment",
+        bottomNav: true,
+        bottomNavOrder: 3,
+      },
+      { label: "View DRS", href: "/viewDrs" },
+      { label: "Encode Validated Deposit Slip", href: "/encodeDeposit" },
+      { label: "View Encoded Deposit Slip", href: "/viewDeposit" },
+      { label: "Request Credit Memo", href: "/payment/credit-memo" },
+    ],
+  },
+  { label: "Disbursement", icon: Wallet, href: "/disbursement" },
+  {
+    label: "Plan Management",
+    icon: ClipboardList,
+    subItems: [
+      { label: "Add New Sale", href: "/plan-management/new" },
+      {
+        label: "Planholder Profile",
+        displayName: "Planholder",
+        href: "/planholderProfile",
+        bottomNav: true,
+        bottomNavOrder: 4,
+      },
+      { label: "Pre-filled LPA", href: "/plan-management/lpa" },
+      { label: "Change of Mode", href: "/plan-management/change-of-mode" },
+    ],
+  },
+  { label: "Document Cancellation", icon: FileX, href: "/dc" },
+];
 
-  return (
-    <AlertModal
-      visible={unavailableLabel !== null}
-      onDismiss={dismissUnavailable}
-      variant="info"
-      title="Not Available"
-      message={`This ${unavailableLabel ?? "page"} page is currently not available.`}
-    />
-  );
+const USER: AppUser = {
+  id: "1",
+  displayName: "Jerome Jardio",
+  position: "Collector",
+  status: "online",
+};
+
+function labelFor(path: string): string {
+  for (const item of NAV_ITEMS) {
+    if (item.href === path) return item.label;
+    const sub = item.subItems?.find((s) => s.href === path);
+    if (sub) return sub.label;
+  }
+  return path;
 }
 
 export default function TabsLayout() {
-  const bg = BG.light;
+  const router = useRouter();
+  const pathname = usePathname();
+  const insets = useSafeAreaInsets();
+  const [unavailableLabel, setUnavailableLabel] = useState<string | null>(null);
+
+  const navigation = useMemo<NavigationAdapter>(
+    () => ({
+      pathname,
+      navigate: (to, options) => {
+        if (typeof to === "number") {
+          router.back();
+          return;
+        }
+        // The shell sends users to `/login` after signing out.
+        if (to === "/login") {
+          router.replace("/(auth)/quick-sign-in");
+          return;
+        }
+        if (!AVAILABLE_ROUTES.has(to)) {
+          setUnavailableLabel(labelFor(to));
+          return;
+        }
+        if (options?.replace) router.replace(to as never);
+        else router.navigate(to as never);
+      },
+    }),
+    [pathname, router],
+  );
 
   return (
     <UserProfileProvider>
-      <NavProvider>
-        <View style={{ flex: 1, backgroundColor: bg }}>
-          <Tabs
-            screenOptions={{ headerShown: false, lazy: false }}
-            tabBar={() => null}
-          >
-            <Tabs.Screen name="index" options={{ title: "index" }} />
-            <Tabs.Screen name="mcpr" options={{ title: "MCPR" }} />
-            <Tabs.Screen name="payment" options={{ title: "Payment" }} />
-            <Tabs.Screen name="viewDrs" options={{ title: "View DRS" }} />
-            <Tabs.Screen
-              name="encodeDeposit"
-              options={{ title: "Encode Deposit" }}
-            />
-            <Tabs.Screen
-              name="viewDeposit"
-              options={{ title: "View Deposit" }}
-            />
-            <Tabs.Screen name="disbursement" options={{ title: "Disbursement" }} />
-            <Tabs.Screen
-              name="planholderProfile"
-              options={{ title: "Planholder Profile" }}
-            />
-            <Tabs.Screen name="profile" options={{ title: "Profile" }} />
-            {/* Keep explore route accessible but unlisted */}
-            <Tabs.Screen name="explore" options={{ href: null }} />
-          </Tabs>
+      <NavigationProvider value={navigation}>
+        <AppLayout
+          navItems={NAV_ITEMS}
+          appName="One St. Peter"
+          appSubtitle="eKolekta"
+          user={USER}
+          onSignOut={() => {}}
+          insets={insets}
+        >
+          <DashboardHeaderMobile
+            title="One St. Peter"
+            subtitle="eKolekta"
+            insets={insets}
+          />
+          <Slot />
+        </AppLayout>
 
-          {/* Rendered after Tabs so it paints over the screen content — it is
-              absolutely positioned and scrolls away with it. */}
-          <AppHeader />
-
-          <BottomNavBar />
-          <SidebarDrawer />
-          <ChatbotFAB />
-          <UnavailablePageAlert />
-        </View>
-      </NavProvider>
+        <MessageDialog
+          open={unavailableLabel !== null}
+          onOpenChange={(open) => !open && setUnavailableLabel(null)}
+          variant="information"
+          title="Not Available"
+          message={`This ${unavailableLabel ?? "page"} page is currently not available.`}
+          confirmText="OK"
+        />
+      </NavigationProvider>
     </UserProfileProvider>
   );
 }

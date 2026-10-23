@@ -1,4 +1,5 @@
 import { Image } from "expo-image";
+import { useThemedStyles, type StPeterTheme } from "osp-ui-kit-native";
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated, {
@@ -10,11 +11,8 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-const GREEN_DARK = "#022c22";
-const GREEN_MID = "#064e3b";
-const GREEN_ACCENT = "#6ee7b7";
-
 export function SplashOverlay() {
+  const styles = useThemedStyles(createStyles);
   const [visible, setVisible] = useState(true);
 
   // Logo
@@ -121,68 +119,68 @@ export function SplashOverlay() {
 const LOGO_BOX = 96;
 const RING_SIZE = LOGO_BOX + 24;
 
-const styles = StyleSheet.create({
-  overlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: GREEN_DARK,
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 9999,
-  },
-  glowOrb: {
-    position: "absolute",
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    backgroundColor: GREEN_MID,
-    opacity: 0.35,
-  },
-  ring: {
-    position: "absolute",
-    width: RING_SIZE,
-    height: RING_SIZE,
-    borderRadius: RING_SIZE / 2,
-    borderWidth: 1.5,
-    borderColor: GREEN_ACCENT,
-  },
-  logoWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logoBox: {
-    width: LOGO_BOX,
-    height: LOGO_BOX,
-    borderRadius: 28,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logo: {
-    width: 64,
-    height: 64,
-  },
-  textWrap: {
-    alignItems: "center",
-    marginTop: 28,
-    gap: 6,
-  },
-  brandTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#ffffff",
-    letterSpacing: -0.3,
-  },
-  brandSub: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: GREEN_ACCENT,
-    letterSpacing: 3,
-    textTransform: "uppercase",
-  },
-});
+const createStyles = (t: StPeterTheme) =>
+  StyleSheet.create({
+    overlay: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: t.colors.canvas,
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 9999,
+    },
+    glowOrb: {
+      position: "absolute",
+      width: 280,
+      height: 280,
+      borderRadius: 140,
+      backgroundColor: t.colors.primaryTint,
+    },
+    ring: {
+      position: "absolute",
+      width: RING_SIZE,
+      height: RING_SIZE,
+      borderRadius: RING_SIZE / 2,
+      borderWidth: 1.5,
+      borderColor: t.colors.primary,
+    },
+    logoWrap: {
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    logoBox: {
+      width: LOGO_BOX,
+      height: LOGO_BOX,
+      borderRadius: 28,
+      backgroundColor: t.colors.surface,
+      borderWidth: 1,
+      borderColor: t.colors.hairline,
+      boxShadow: t.shadows.card,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    logo: {
+      width: 64,
+      height: 64,
+    },
+    textWrap: {
+      alignItems: "center",
+      marginTop: 28,
+      gap: 6,
+    },
+    brandTitle: {
+      ...t.textStyles.heading2xl,
+      ...t.font("heading", "700"),
+      letterSpacing: -0.3,
+    },
+    brandSub: {
+      ...t.font("ui", "600"),
+      fontSize: t.fontSizes["2xs"],
+      color: t.colors.primary,
+      letterSpacing: 3,
+      textTransform: "uppercase",
+    },
+  });

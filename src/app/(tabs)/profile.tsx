@@ -1,10 +1,12 @@
-import React from 'react';
-import { Text, View } from 'react-native';
+import { User } from "lucide-react-native";
+import { EmptyStateCard } from "osp-ui-kit-native";
+import React from "react";
+import { View } from "react-native";
 
 export default function ProfileScreen() {
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <Text>Profile</Text>
+    <View style={{ paddingTop: 16, paddingHorizontal: 8 }}>
+      <EmptyStateCard icon={User} title="Profile" description="Coming soon" />
     </View>
   );
 }

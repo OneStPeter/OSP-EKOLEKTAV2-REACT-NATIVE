@@ -2,8 +2,6 @@ import { useLocalSearchParams } from "expo-router";
 import {
   ArrowLeftRight,
   Calendar,
-  ChevronLeft,
-  ChevronRight,
   ClipboardList,
   Filter,
   FileText,
@@ -11,45 +9,42 @@ import {
   TriangleAlert,
   Wallet,
 } from "lucide-react-native";
-import React, { useEffect, useMemo, useState } from "react";
 import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
-} from "react-native";
-import Animated from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-import { APP_HEADER_HEIGHT } from "@/components/navigation/AppHeader";
-import { BOTTOM_NAV_HEIGHT } from "@/components/navigation/BottomNavBar";
-import type { PillSelectOption, StepperStep } from "@/components/ui";
-import {
-  AlertModal,
-  AppButton,
-  AppCaption,
-  Badge,
-  BRAND_COLORS,
+  alpha,
+  BaseButton,
+  BaseIconButton,
+  BaseText,
+  Caption,
   Card,
   Checkbox,
-  ConfirmModal,
-  EmptyState,
+  EmptyStateCard,
+  FormStepper,
   LookupField,
-  PillSelect,
+  MessageDialog,
+  OSPBadge,
   RowItem,
-  SectionHeader,
-  Stepper,
-  theme,
-  useAlertModal,
-} from "@/components/ui";
+  SectionTitle,
+  SegmentedControl,
+  Small,
+  useTheme,
+  useThemedStyles,
+} from "osp-ui-kit-native";
+import type {
+  FormStepItem,
+  LookupColumn,
+  OSPBadgeType,
+  SegmentedOption,
+} from "osp-ui-kit-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+
 import {
   DRS_ITEMS,
   drsAmount,
   type DrsItem,
   type DrsPaymentRow,
 } from "@/data/drs";
-import { useScrollNav } from "@/hooks/use-scroll-nav";
+import { useAlertModal } from "@/hooks/use-alert-modal";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -73,20 +68,34 @@ type DisbursementItem = ReleaseRecord & { release: number };
 
 // ── Static data ─────────────────────────────────────────────────────────────
 
-const DISBURSEMENT_STEPS: StepperStep[] = [
-  { label: "Select DRS", icon: FileText },
-  { label: "Disburse", icon: ClipboardList },
-  { label: "Release", icon: Wallet },
-];
-
 const TYPE_LABEL: Record<DisbursementType, string> = {
   COM: "Commission",
   TE: "Transportation",
 };
 
+const TYPE_BADGE: Record<DisbursementType, OSPBadgeType> = {
+  COM: "success",
+  TE: "info",
+};
+
 const DRS_STEP = 0;
 const RECORDS_STEP = 1;
 const REVIEW_STEP = 2;
+
+const DRS_LOOKUP_COLUMNS: LookupColumn<DrsItem>[] = [
+  { key: "name", header: "Reference" },
+  {
+    key: "SlipDate",
+    header: "Slip Date",
+    render: (_v, row) => fmtDateStr(row.SlipDate),
+  },
+  {
+    key: "id",
+    header: "Available Balance",
+    enableSorting: false,
+    render: (_v, row) => fmt$(drsAmount(row)),
+  },
+];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -136,10 +145,143 @@ function releaseRecords(
 // ── Screen ──────────────────────────────────────────────────────────────────
 
 export default function DisbursementScreen() {
-  const scrollHandler = useScrollNav();
-  const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-  const isTablet = width >= 768;
+  const theme = useTheme();
+  const c = theme.colors;
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      step: { gap: 10 },
+
+      // Step 1 — DRS list
+      slipList: { gap: 10 },
+      slipCard: {
+        borderRadius: t.radii.card,
+        borderWidth: 1,
+        borderColor: t.colors.hairline,
+        backgroundColor: t.colors.surface,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+      },
+      slipCardSelected: {
+        borderColor: t.colors.primary,
+        backgroundColor: t.colors.primaryTint,
+      },
+      slipHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+      slipDateRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        marginTop: 2,
+      },
+
+      // Step 2 — records
+      balanceStrip: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        backgroundColor: t.colors.primaryTint,
+        borderWidth: 1,
+        borderColor: alpha(t.colors.primary, 0.2),
+        borderRadius: t.radii.card,
+        paddingHorizontal: 14,
+        paddingVertical: 11,
+      },
+      selectAllRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        paddingVertical: 8,
+      },
+      recordList: { gap: 10 },
+      recordCard: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: 12,
+        borderRadius: t.radii.card,
+        borderWidth: 1,
+        borderColor: t.colors.hairline,
+        backgroundColor: t.colors.surface,
+        padding: 12,
+      },
+      recordCardSelected: {
+        borderColor: t.colors.primary,
+        backgroundColor: t.colors.primaryTint,
+      },
+      recordTopRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 8,
+      },
+      recordBadges: { flexDirection: "row", gap: 6, marginTop: 6 },
+      listSummary: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        marginTop: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 11,
+        borderRadius: t.radii.card,
+        borderWidth: 1,
+        borderColor: t.colors.hairline,
+        backgroundColor: t.colors.canvas,
+      },
+
+      // Step 3 — review
+      balanceCard: {
+        borderRadius: t.radii.card,
+        borderWidth: 1,
+        borderColor: alpha(t.colors.primary, 0.2),
+        backgroundColor: t.colors.primaryTint,
+        padding: 14,
+      },
+      balanceCardTop: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: 10,
+      },
+      progressTrack: {
+        height: 8,
+        borderRadius: 9999,
+        backgroundColor: t.colors.surface,
+        overflow: "hidden",
+      },
+      progressFill: { height: "100%", borderRadius: 9999 },
+      balanceCardBottom: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        marginTop: 6,
+      },
+      totalsBox: {
+        backgroundColor: t.colors.canvas,
+        borderRadius: t.radii.card,
+        borderWidth: 1,
+        borderColor: t.colors.hairline,
+        paddingHorizontal: 10,
+        marginTop: 12,
+      },
+      addedCard: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: 12,
+        borderRadius: t.radii.card,
+        borderWidth: 1,
+        borderColor: t.colors.hairline,
+        backgroundColor: t.colors.canvas,
+        padding: 12,
+      },
+      warnRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        marginTop: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        borderRadius: t.radii.card,
+        backgroundColor: t.colors.dangerTint,
+      },
+    }),
+  );
 
   const { drs } = useLocalSearchParams<{ drs?: string }>();
 
@@ -185,7 +327,7 @@ export default function DisbursementScreen() {
     );
   }, [selectedDrs, selectedType, addedKeys]);
 
-  const typeOptions: PillSelectOption[] = useMemo(
+  const typeOptions: SegmentedOption<string>[] = useMemo(
     () =>
       (["COM", "TE"] as DisbursementType[]).map((type) => {
         const count = releaseRecords(selectedDrs, type).filter(
@@ -269,33 +411,30 @@ export default function DisbursementScreen() {
     setAddedItems((prev) => prev.filter((i) => i.key !== key));
   }
 
-  function handleBack() {
-    setCurrentStep((step) => Math.max(DRS_STEP, step - 1));
-  }
+  // ── Step gates (FormStepper runs these for Next and header jumps) ──
 
-  function handleNext() {
-    handleStepPress(currentStep + 1);
-  }
-
-  function handleStepPress(index: number) {
-    if (index > REVIEW_STEP) return;
-    if (index > DRS_STEP && !selectedDrs) {
+  function validateDrsStep() {
+    if (!selectedDrs) {
       showAlert(
         "warning",
         "No DRS Selected",
         "Select a Digital Remittance Slip before disbursing.",
       );
-      return;
+      return false;
     }
-    if (index === REVIEW_STEP && addedItems.length === 0) {
+    return true;
+  }
+
+  function validateRecordsStep() {
+    if (addedItems.length === 0) {
       showAlert(
         "warning",
         "Nothing to Release",
         "Add at least one record to the disbursement list first.",
       );
-      return;
+      return false;
     }
-    setCurrentStep(index);
+    return true;
   }
 
   function handleRelease() {
@@ -339,648 +478,420 @@ export default function DisbursementScreen() {
     );
   }
 
-  return (
-    <>
-      <Animated.ScrollView
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        style={{ backgroundColor: theme.color.bg }}
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: APP_HEADER_HEIGHT + insets.top + 16,
-            paddingBottom: BOTTOM_NAV_HEIGHT + insets.bottom + 16,
-            paddingHorizontal: isTablet ? 24 : 16,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Stepper
-          steps={DISBURSEMENT_STEPS}
-          currentStep={currentStep}
-          onStepPress={handleStepPress}
-          style={{ marginBottom: 4 }}
-        />
+  // ── Step 1: pick the remittance slip to release against ──
 
-        {/* ── Step 1: pick the remittance slip to release against ── */}
-        {currentStep === DRS_STEP && (
-          <>
-            <LookupField<DrsItem>
-              label="Digital Remittance Slip"
-              placeholder="Search by reference…"
-              modalTitle="Search Remittance Slip"
-              data={sortedDrs}
-              searchKeys={["name"]}
-              value={null}
-              onSelect={handleSelectDrs}
-              renderDisplay={(item) => item.name}
-              renderMeta={(item) =>
-                `${fmtDateStr(item.SlipDate)} · ${fmt$(drsAmount(item))}`
-              }
-              keyExtractor={(item) => item.id}
-            />
+  const drsStepContent = (
+    <View style={styles.step}>
+      <LookupField<DrsItem>
+        label="Digital Remittance Slip"
+        placeholder="Search by reference…"
+        modalTitle="Search Remittance Slip"
+        variant="search"
+        columns={DRS_LOOKUP_COLUMNS}
+        dataSource={sortedDrs}
+        searchKeys={["name"]}
+        value={null}
+        onSelect={handleSelectDrs}
+        renderDisplay={(item) => item.name}
+      />
 
-            <SectionHeader
-              title="Available Slips"
-              subtitle="Select the slip you are releasing from"
-              style={{ marginTop: 14, marginBottom: 0 }}
-            />
+      <View style={{ marginTop: 4 }}>
+        <SectionTitle>Available Slips</SectionTitle>
+        <Small color="mutedStrong">Select the slip you are releasing from</Small>
+      </View>
 
-            <View style={styles.slipList}>
-              {sortedDrs.length === 0 ? (
-                <EmptyState
-                  icon={FileText}
-                  title="No remittance slips"
-                  message="Encoded DRS records will appear here."
-                />
-              ) : (
-                sortedDrs.map((item) => {
-                  const isSelected = selectedDrs?.id === item.id;
-                  return (
-                    <TouchableOpacity
-                      key={item.id}
-                      activeOpacity={0.8}
-                      onPress={() => handleSelectDrs(item)}
-                      style={[
-                        styles.slipCard,
-                        isSelected && styles.slipCardSelected,
-                      ]}
-                    >
-                      <View style={styles.slipHeader}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.slipName} numberOfLines={1}>
-                            {item.name}
-                          </Text>
-                          <View style={styles.slipDateRow}>
-                            <Calendar size={11} color={theme.color.muted} />
-                            <Text style={styles.slipDateText}>
-                              {fmtDateStr(item.SlipDate)}
-                            </Text>
-                          </View>
-                        </View>
-                        <View style={{ alignItems: "flex-end" }}>
-                          <AppCaption>Available balance</AppCaption>
-                          <Text style={styles.slipAmount}>
-                            {fmt$(drsAmount(item))}
-                          </Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })
-              )}
-            </View>
-          </>
-        )}
-
-        {/* ── Step 2: pick the claims to disburse ── */}
-        {currentStep === RECORDS_STEP && (
-          <Card
-            icon={ClipboardList}
-            title={selectedDrs?.name ?? "Disbursement"}
-            subtitle="Subject for release"
-            headerAction={
-              <TouchableOpacity
-                onPress={() => setCurrentStep(DRS_STEP)}
-                style={styles.iconBtn}
-                hitSlop={8}
+      <View style={styles.slipList}>
+        {sortedDrs.length === 0 ? (
+          <EmptyStateCard
+            icon={FileText}
+            title="No remittance slips"
+            description="Encoded DRS records will appear here."
+          />
+        ) : (
+          sortedDrs.map((item) => {
+            const isSelected = selectedDrs?.id === item.id;
+            return (
+              <Pressable
+                key={item.id}
+                accessibilityRole="button"
+                onPress={() => handleSelectDrs(item)}
+                style={({ pressed }) => [
+                  styles.slipCard,
+                  isSelected && styles.slipCardSelected,
+                  pressed && { opacity: 0.8 },
+                ]}
               >
-                <ArrowLeftRight size={15} color={theme.color.accent} />
-              </TouchableOpacity>
-            }
-          >
-            {!selectedDrs ? (
-              <EmptyState
-                icon={FileText}
-                title="No DRS Selected"
-                message="Go back and select a Digital Remittance Slip first."
-              />
-            ) : (
-              <>
-                <View style={styles.balanceStrip}>
-                  <AppCaption>Available balance</AppCaption>
-                  <Text style={styles.balanceStripValue}>
-                    {fmt$(totals.balance)}
-                  </Text>
-                </View>
-
-                <PillSelect
-                  label="Disbursement Type"
-                  options={typeOptions}
-                  value={selectedType}
-                  onChange={handleSelectType}
-                  style={{ marginTop: 12 }}
-                />
-
-                {!selectedType ? (
-                  <EmptyState
-                    icon={Filter}
-                    title="Choose a type"
-                    message="Pick Commission or Transportation to load the eligible records."
-                  />
-                ) : eligible.length === 0 ? (
-                  <EmptyState
-                    icon={ClipboardList}
-                    title="Nothing left to add"
-                    message={`All ${TYPE_LABEL[selectedType].toLowerCase()} records for this slip are already in your list.`}
-                  />
-                ) : (
-                  <>
-                    <TouchableOpacity
-                      style={styles.selectAllRow}
-                      activeOpacity={0.75}
-                      onPress={toggleCheckAll}
+                <View style={styles.slipHeader}>
+                  <View style={{ flex: 1 }}>
+                    <BaseText
+                      fontSize="sm"
+                      fontWeight="bold"
+                      color="heading"
+                      numberOfLines={1}
                     >
-                      <Checkbox
-                        checked={allChecked}
-                        indeterminate={someChecked}
-                        size={16}
-                      />
-                      <Text style={styles.selectAllText}>
-                        {allChecked ? "Clear all" : "Select all"}
-                      </Text>
-                      <View style={{ flex: 1 }} />
-                      <Text style={styles.selectAllCount}>
-                        {eligible.length} record(s)
-                      </Text>
-                    </TouchableOpacity>
-
-                    <View style={styles.recordList}>
-                      {eligible.map((r) => {
-                        const on = checked.has(r.key);
-                        return (
-                          <TouchableOpacity
-                            key={r.key}
-                            activeOpacity={0.8}
-                            onPress={() => toggleCheck(r.key)}
-                            style={[
-                              styles.recordCard,
-                              on && styles.recordCardSelected,
-                            ]}
-                          >
-                            <Checkbox checked={on} />
-                            <View style={{ flex: 1 }}>
-                              <View style={styles.recordTopRow}>
-                                <Text
-                                  style={styles.recordName}
-                                  numberOfLines={1}
-                                >
-                                  {r.Name}
-                                </Text>
-                                <Text style={styles.recordAmount}>
-                                  {fmt$(r.amount)}
-                                </Text>
-                              </View>
-                              <Text style={styles.recordMeta}>
-                                SI {r.SI} · Inst. {r.InstNo}
-                              </Text>
-                              <View style={styles.recordBadges}>
-                                <Badge
-                                  label={TYPE_LABEL[r.type]}
-                                  color={
-                                    r.type === "COM"
-                                      ? theme.color.accent
-                                      : theme.color.info
-                                  }
-                                  backgroundColor={
-                                    r.type === "COM"
-                                      ? theme.color.successBg
-                                      : theme.color.infoBg
-                                  }
-                                />
-                                <Badge
-                                  label={r.PayClass}
-                                  color={theme.color.body}
-                                  backgroundColor={BRAND_COLORS.mutedBg}
-                                />
-                              </View>
-                            </View>
-                          </TouchableOpacity>
-                        );
-                      })}
+                      {item.name}
+                    </BaseText>
+                    <View style={styles.slipDateRow}>
+                      <Calendar size={11} color={c.muted} />
+                      <Small color="muted">{fmtDateStr(item.SlipDate)}</Small>
                     </View>
-
-                    <AppButton
-                      size="lg"
-                      style={{ marginTop: 14 }}
-                      disabled={checkedRecords.length === 0}
-                      leftIcon={<Plus size={15} color="#fff" />}
-                      onPress={handleAddToList}
+                  </View>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Caption>Available balance</Caption>
+                    <BaseText
+                      fontSize="md"
+                      fontWeight="extrabold"
+                      color="infoFg"
+                      style={{ marginTop: 2 }}
                     >
-                      {checkedRecords.length === 0
-                        ? "Select records to add"
-                        : `Add ${checkedRecords.length} · ${fmt$(checkedTotal)}`}
-                    </AppButton>
-                  </>
-                )}
-
-                {addedItems.length > 0 && (
-                  <TouchableOpacity
-                    style={styles.listSummary}
-                    activeOpacity={0.8}
-                    onPress={() => setCurrentStep(REVIEW_STEP)}
-                  >
-                    <Wallet size={14} color={theme.color.accent} />
-                    <Text style={styles.listSummaryText}>
-                      {addedItems.length} in list · {fmt$(totals.disburse)}
-                    </Text>
-                    <View style={{ flex: 1 }} />
-                    <Text
-                      style={[
-                        styles.listSummaryRemaining,
-                        over && { color: theme.color.error },
-                      ]}
-                    >
-                      {fmt$(totals.remaining)} left
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </>
-            )}
-          </Card>
+                      {fmt$(drsAmount(item))}
+                    </BaseText>
+                  </View>
+                </View>
+              </Pressable>
+            );
+          })
         )}
+      </View>
+    </View>
+  );
 
-        {/* ── Step 3: review the amounts and release ── */}
-        {currentStep === REVIEW_STEP && (
-          <Card
-            icon={Wallet}
-            title="Review & Release"
-            subtitle={selectedDrs?.name ?? "—"}
-          >
-            {addedItems.length === 0 ? (
-              <EmptyState
+  // ── Step 2: pick the claims to disburse ──
+
+  const recordsStepContent = (
+    <Card.Root title={selectedDrs?.name ?? "Disbursement"}>
+      <Card.Subtitle>| Subject for release</Card.Subtitle>
+      <Card.ButtonSection>
+        <BaseIconButton
+          accessibilityLabel="Change remittance slip"
+          icon={ArrowLeftRight}
+          variant="outline"
+          size="sm"
+          rounded="full"
+          onPress={() => setCurrentStep(DRS_STEP)}
+        />
+      </Card.ButtonSection>
+      <Card.MainContent>
+        {!selectedDrs ? (
+          <EmptyStateCard
+            icon={FileText}
+            title="No DRS Selected"
+            description="Go back and select a Digital Remittance Slip first."
+          />
+        ) : (
+          <>
+            <View style={styles.balanceStrip}>
+              <Caption>Available balance</Caption>
+              <BaseText fontSize="md" fontWeight="extrabold" color="infoFg">
+                {fmt$(totals.balance)}
+              </BaseText>
+            </View>
+
+            <View style={{ marginTop: 12, marginBottom: 12, gap: 6 }}>
+              <Small fontWeight="semibold" color="mutedStrong">
+                Disbursement Type
+              </Small>
+              <SegmentedControl<string>
+                options={typeOptions}
+                value={selectedType}
+                onValueChange={handleSelectType}
+              />
+            </View>
+
+            {!selectedType ? (
+              <EmptyStateCard
+                icon={Filter}
+                title="Choose a type"
+                description="Pick Commission or Transportation to load the eligible records."
+              />
+            ) : eligible.length === 0 ? (
+              <EmptyStateCard
                 icon={ClipboardList}
-                title="No records added"
-                message="Go back and add at least one record to release."
+                title="Nothing left to add"
+                description={`All ${TYPE_LABEL[selectedType].toLowerCase()} records for this slip are already in your list.`}
               />
             ) : (
               <>
-                <View style={styles.balanceCard}>
-                  <View style={styles.balanceCardTop}>
-                    <AppCaption color="accent">Available balance</AppCaption>
-                    <Text style={styles.balanceCardValue}>
-                      {fmt$(totals.balance)}
-                    </Text>
-                  </View>
-                  <View style={styles.progressTrack}>
-                    <View
-                      style={[
-                        styles.progressFill,
-                        {
-                          width: `${allocatedPct}%`,
-                          backgroundColor: over
-                            ? theme.color.error
-                            : allocatedPct >= 90
-                              ? theme.color.warning
-                              : BRAND_COLORS.primaryGreen,
-                        },
-                      ]}
-                    />
-                  </View>
-                  <View style={styles.balanceCardBottom}>
-                    <Text style={styles.balanceCardMeta}>
-                      {allocatedPct}% allocated
-                    </Text>
-                    <Text
-                      style={[
-                        styles.balanceCardMeta,
-                        over && {
-                          color: theme.color.error,
-                          fontWeight: "700",
-                        },
-                      ]}
-                    >
-                      {over
-                        ? `Over by ${fmt$(Math.abs(totals.remaining))}`
-                        : `${fmt$(totals.remaining)} left`}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.totalsBox}>
-                  <RowItem label="Commission" value={fmt$(totals.com)} />
-                  <RowItem label="Transportation" value={fmt$(totals.te)} />
-                  <RowItem
-                    label="Total to Disburse"
-                    value={fmt$(totals.disburse)}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.selectAllRow,
+                    pressed && { opacity: 0.75 },
+                  ]}
+                  onPress={toggleCheckAll}
+                >
+                  <Checkbox
+                    size="sm"
+                    checked={allChecked}
+                    indeterminate={someChecked}
+                    onCheckedChange={toggleCheckAll}
+                    accessibilityLabel="Select all records"
                   />
-                </View>
-
-                <SectionHeader
-                  title="Records to Release"
-                  subtitle={`${addedItems.length} record(s)`}
-                  style={{ marginTop: 14 }}
-                />
+                  <Small fontWeight="bold" color="infoFg">
+                    {allChecked ? "Clear all" : "Select all"}
+                  </Small>
+                  <View style={{ flex: 1 }} />
+                  <Small color="muted">{eligible.length} record(s)</Small>
+                </Pressable>
 
                 <View style={styles.recordList}>
-                  {addedItems.map((item) => (
-                    <View key={item.key} style={styles.addedCard}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.recordName} numberOfLines={1}>
-                          {item.Name}
-                        </Text>
-                        <Text style={styles.recordMeta}>
-                          SI {item.SI} · Inst. {item.InstNo}
-                        </Text>
-                        <View style={styles.recordBadges}>
-                          <Badge
-                            label={TYPE_LABEL[item.type]}
-                            color={
-                              item.type === "COM"
-                                ? theme.color.accent
-                                : theme.color.info
-                            }
-                            backgroundColor={
-                              item.type === "COM"
-                                ? theme.color.successBg
-                                : theme.color.infoBg
-                            }
-                          />
+                  {eligible.map((r) => {
+                    const on = checked.has(r.key);
+                    return (
+                      <Pressable
+                        key={r.key}
+                        onPress={() => toggleCheck(r.key)}
+                        style={({ pressed }) => [
+                          styles.recordCard,
+                          on && styles.recordCardSelected,
+                          pressed && { opacity: 0.8 },
+                        ]}
+                      >
+                        <Checkbox
+                          checked={on}
+                          onCheckedChange={() => toggleCheck(r.key)}
+                          accessibilityLabel={r.Name}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <View style={styles.recordTopRow}>
+                            <BaseText
+                              fontSize="sm"
+                              fontWeight="bold"
+                              color="heading"
+                              numberOfLines={1}
+                              style={{ flex: 1 }}
+                            >
+                              {r.Name}
+                            </BaseText>
+                            <BaseText
+                              fontSize="sm"
+                              fontWeight="extrabold"
+                              color="heading"
+                            >
+                              {fmt$(r.amount)}
+                            </BaseText>
+                          </View>
+                          <Small color="muted" style={{ marginTop: 2 }}>
+                            SI {r.SI} · Inst. {r.InstNo}
+                          </Small>
+                          <View style={styles.recordBadges}>
+                            <OSPBadge type={TYPE_BADGE[r.type]}>
+                              {TYPE_LABEL[r.type]}
+                            </OSPBadge>
+                            <OSPBadge>{r.PayClass}</OSPBadge>
+                          </View>
                         </View>
-                      </View>
-
-                      <View style={{ alignItems: "flex-end", gap: 6 }}>
-                        <Text style={styles.addedAmount}>
-                          {fmt$(item.release)}
-                        </Text>
-                        <AppButton
-                          variant="destructive"
-                          size="sm"
-                          onPress={() => handleRemoveItem(item.key)}
-                        >
-                          Remove
-                        </AppButton>
-                      </View>
-                    </View>
-                  ))}
+                      </Pressable>
+                    );
+                  })}
                 </View>
 
-                {over && (
-                  <View style={styles.warnRow}>
-                    <TriangleAlert size={14} color={theme.color.error} />
-                    <Text style={styles.warnText}>
-                      Exceeds balance by {fmt$(Math.abs(totals.remaining))}
-                    </Text>
-                  </View>
-                )}
-
+                <BaseButton
+                  size="lg"
+                  fullWidth
+                  style={{ marginTop: 14 }}
+                  disabled={checkedRecords.length === 0}
+                  leftIcon={Plus}
+                  onPress={handleAddToList}
+                >
+                  {checkedRecords.length === 0
+                    ? "Select records to add"
+                    : `Add ${checkedRecords.length} · ${fmt$(checkedTotal)}`}
+                </BaseButton>
               </>
             )}
-          </Card>
+
+            {addedItems.length > 0 && (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.listSummary,
+                  pressed && { opacity: 0.8 },
+                ]}
+                onPress={() => setCurrentStep(REVIEW_STEP)}
+              >
+                <Wallet size={14} color={c.primary} />
+                <Small fontWeight="bold" color="heading">
+                  {addedItems.length} in list · {fmt$(totals.disburse)}
+                </Small>
+                <View style={{ flex: 1 }} />
+                <Small fontWeight="bold" color={over ? "danger" : "infoFg"}>
+                  {fmt$(totals.remaining)} left
+                </Small>
+              </Pressable>
+            )}
+          </>
         )}
+      </Card.MainContent>
+    </Card.Root>
+  );
 
-        {/* Wizard navigation — Next validates the step it is moving into */}
-        <View style={styles.stepNav}>
-          <AppButton
-            variant="secondary"
-            size="lg"
-            style={{ flex: 1 }}
-            disabled={currentStep === DRS_STEP}
-            leftIcon={<ChevronLeft size={16} color={theme.color.body} />}
-            onPress={handleBack}
-          >
-            Back
-          </AppButton>
+  // ── Step 3: review the amounts and release ──
 
-          {currentStep === REVIEW_STEP ? (
-            <AppButton
-              size="lg"
-              style={{ flex: 1 }}
-              disabled={!canRelease}
-              onPress={handleRelease}
-            >
-              Release
-            </AppButton>
-          ) : (
-            <AppButton
-              size="lg"
-              style={{ flex: 1 }}
-              rightIcon={<ChevronRight size={16} color="#fff" />}
-              onPress={handleNext}
-            >
-              Next
-            </AppButton>
-          )}
-        </View>
-      </Animated.ScrollView>
+  const reviewStepContent = (
+    <Card.Root title="Review & Release">
+      <Card.Subtitle>| {selectedDrs?.name ?? "—"}</Card.Subtitle>
+      <Card.MainContent>
+        {addedItems.length === 0 ? (
+          <EmptyStateCard
+            icon={ClipboardList}
+            title="No records added"
+            description="Go back and add at least one record to release."
+          />
+        ) : (
+          <>
+            <View style={styles.balanceCard}>
+              <View style={styles.balanceCardTop}>
+                <Caption color="infoFg">Available balance</Caption>
+                <BaseText fontSize="lg" fontWeight="extrabold" color="infoFg">
+                  {fmt$(totals.balance)}
+                </BaseText>
+              </View>
+              <View style={styles.progressTrack}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${allocatedPct}%`,
+                      backgroundColor: over
+                        ? c.danger
+                        : allocatedPct >= 90
+                          ? c.warning
+                          : c.primary,
+                    },
+                  ]}
+                />
+              </View>
+              <View style={styles.balanceCardBottom}>
+                <Small color="foreground">{allocatedPct}% allocated</Small>
+                <Small
+                  color={over ? "danger" : "foreground"}
+                  fontWeight={over ? "bold" : undefined}
+                >
+                  {over
+                    ? `Over by ${fmt$(Math.abs(totals.remaining))}`
+                    : `${fmt$(totals.remaining)} left`}
+                </Small>
+              </View>
+            </View>
+
+            <View style={styles.totalsBox}>
+              <RowItem label="Commission" value={fmt$(totals.com)} />
+              <RowItem label="Transportation" value={fmt$(totals.te)} />
+              <RowItem label="Total to Disburse" value={fmt$(totals.disburse)} />
+            </View>
+
+            <View style={{ marginTop: 14, marginBottom: 10 }}>
+              <SectionTitle>Records to Release</SectionTitle>
+              <Small color="mutedStrong">{addedItems.length} record(s)</Small>
+            </View>
+
+            <View style={styles.recordList}>
+              {addedItems.map((item) => (
+                <View key={item.key} style={styles.addedCard}>
+                  <View style={{ flex: 1 }}>
+                    <BaseText
+                      fontSize="sm"
+                      fontWeight="bold"
+                      color="heading"
+                      numberOfLines={1}
+                    >
+                      {item.Name}
+                    </BaseText>
+                    <Small color="muted" style={{ marginTop: 2 }}>
+                      SI {item.SI} · Inst. {item.InstNo}
+                    </Small>
+                    <View style={styles.recordBadges}>
+                      <OSPBadge type={TYPE_BADGE[item.type]}>
+                        {TYPE_LABEL[item.type]}
+                      </OSPBadge>
+                    </View>
+                  </View>
+
+                  <View style={{ alignItems: "flex-end", gap: 6 }}>
+                    <BaseText
+                      fontSize="sm"
+                      fontWeight="extrabold"
+                      color="heading"
+                    >
+                      {fmt$(item.release)}
+                    </BaseText>
+                    <BaseButton
+                      variant="solid"
+                      tone="danger"
+                      size="sm"
+                      onPress={() => handleRemoveItem(item.key)}
+                    >
+                      Remove
+                    </BaseButton>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {over && (
+              <View style={styles.warnRow}>
+                <TriangleAlert size={14} color={c.danger} />
+                <Small fontWeight="bold" color="danger">
+                  Exceeds balance by {fmt$(Math.abs(totals.remaining))}
+                </Small>
+              </View>
+            )}
+          </>
+        )}
+      </Card.MainContent>
+    </Card.Root>
+  );
+
+  // Next / header jumps run each step's gate before moving past it.
+  const stepsData: FormStepItem[] = [
+    {
+      title: "Select DRS",
+      icon: FileText,
+      content: drsStepContent,
+      validateBeforeNext: validateDrsStep,
+    },
+    {
+      title: "Disburse",
+      icon: ClipboardList,
+      content: recordsStepContent,
+      validateBeforeNext: validateRecordsStep,
+    },
+    { title: "Release", icon: Wallet, content: reviewStepContent },
+  ];
+
+  return (
+    <>
+      <FormStepper
+        stepsData={stepsData}
+        currentStep={currentStep}
+        setCurrentStep={setCurrentStep}
+        onStepsComplete={handleRelease}
+        submitButtonText="Release"
+        submitDisabled={!canRelease}
+      />
 
       {/* Release confirmation */}
-      <ConfirmModal
-        visible={confirmReleaseVisible}
-        onCancel={() => setConfirmReleaseVisible(false)}
+      <MessageDialog
+        open={confirmReleaseVisible}
+        onOpenChange={(o) => !o && setConfirmReleaseVisible(false)}
         onConfirm={performRelease}
-        variant="warning"
+        variant="confirmation"
         title="Confirm Release"
         message={`Release ${addedItems.length} record(s) totalling ${fmt$(
           totals.disburse,
         )} from ${selectedDrs?.name ?? ""}?`}
-        cancelLabel="Cancel"
-        confirmLabel="Yes, Release"
+        cancelText="Cancel"
+        confirmText="Yes, Release"
       />
 
       {/* Status alert */}
-      <AlertModal
-        visible={alertState.visible}
-        onDismiss={dismissAlert}
+      <MessageDialog
+        open={alertState.open}
+        onOpenChange={(o) => !o && dismissAlert()}
         variant={alertState.variant}
         title={alertState.title}
         message={alertState.message}
+        confirmText="OK"
       />
     </>
   );
 }
-
-// ── Styles ───────────────────────────────────────────────────────────────────
-
-const styles = StyleSheet.create({
-  content: { padding: 16, gap: 10 },
-
-  // Step 1 — DRS list
-  slipList: { gap: 10, marginTop: 10 },
-  slipCard: {
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    backgroundColor: theme.color.card,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  slipCardSelected: {
-    borderColor: BRAND_COLORS.primaryGreen,
-    backgroundColor: theme.color.successBg,
-  },
-  slipHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
-  slipName: { fontSize: 14, fontWeight: "700", color: theme.color.ink },
-  slipDateRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 2,
-  },
-  slipDateText: { fontSize: 11, color: theme.color.muted },
-  slipAmount: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: BRAND_COLORS.darkGreen,
-    marginTop: 2,
-  },
-
-  // Step 2 — records
-  iconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: theme.radius.full,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.color.card,
-  },
-  balanceStrip: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: theme.color.successBg,
-    borderWidth: 1,
-    borderColor: BRAND_COLORS.primaryGreen + "33",
-    borderRadius: theme.radius.md,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-  },
-  balanceStripValue: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: BRAND_COLORS.darkGreen,
-  },
-  selectAllRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 8,
-  },
-  selectAllText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: theme.color.accent,
-  },
-  selectAllCount: { fontSize: 11, color: theme.color.muted },
-  recordList: { gap: 10 },
-  recordCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    backgroundColor: theme.color.card,
-    padding: 12,
-  },
-  recordCardSelected: {
-    borderColor: BRAND_COLORS.primaryGreen,
-    backgroundColor: theme.color.successBg,
-  },
-  recordTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  recordName: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: "700",
-    color: theme.color.ink,
-  },
-  recordAmount: { fontSize: 13, fontWeight: "800", color: theme.color.ink },
-  recordMeta: { fontSize: 11, color: theme.color.muted, marginTop: 2 },
-  recordBadges: { flexDirection: "row", gap: 6, marginTop: 6 },
-  listSummary: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    backgroundColor: BRAND_COLORS.subtleBg,
-  },
-  listSummaryText: { fontSize: 12, fontWeight: "700", color: theme.color.ink },
-  listSummaryRemaining: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: BRAND_COLORS.darkGreen,
-  },
-
-  // Step 3 — review
-  balanceCard: {
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: BRAND_COLORS.primaryGreen + "33",
-    backgroundColor: theme.color.successBg,
-    padding: 14,
-  },
-  balanceCardTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  balanceCardValue: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: BRAND_COLORS.darkGreen,
-  },
-  progressTrack: {
-    height: 8,
-    borderRadius: theme.radius.full,
-    backgroundColor: theme.color.card,
-    overflow: "hidden",
-  },
-  progressFill: { height: "100%", borderRadius: theme.radius.full },
-  balanceCardBottom: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 6,
-  },
-  balanceCardMeta: { fontSize: 11, color: theme.color.body },
-  totalsBox: {
-    backgroundColor: BRAND_COLORS.subtleBg,
-    borderRadius: theme.radius.sm,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    paddingHorizontal: 10,
-    marginTop: 12,
-  },
-  addedCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    backgroundColor: BRAND_COLORS.subtleBg,
-    padding: 12,
-  },
-  addedAmount: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: theme.color.ink,
-  },
-  warnRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: theme.radius.sm,
-    backgroundColor: theme.color.errorBg,
-  },
-  warnText: { fontSize: 12, fontWeight: "700", color: theme.color.error },
-
-  // Wizard navigation
-  stepNav: { flexDirection: "row", gap: 10, marginTop: 4 },
-});
