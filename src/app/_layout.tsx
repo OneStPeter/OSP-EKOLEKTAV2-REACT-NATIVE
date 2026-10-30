@@ -8,6 +8,8 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SplashOverlay } from "@/components/SplashOverlay";
 
 export default function RootLayout() {
+  const [splashDone, setSplashDone] = useState(false);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <StPeterProvider theme="green">

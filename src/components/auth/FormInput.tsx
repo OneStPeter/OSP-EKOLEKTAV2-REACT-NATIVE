@@ -11,11 +11,15 @@ import {
 
 type IconName = { ios: string; android: string; web: string };
 
+export type FormInputSize = "regular" | "compact";
+
 interface FormInputProps extends TextInputProps {
   label: string;
   iconName: IconName;
   rightSlot?: React.ReactNode;
   error?: string;
+  /** "compact" trims height and spacing for short screens. Defaults to "regular". */
+  size?: FormInputSize;
 }
 
 export function FormInput({
@@ -23,13 +27,21 @@ export function FormInput({
   iconName,
   rightSlot,
   error,
+  size = "regular",
   style,
   ...inputProps
 }: FormInputProps) {
+  const compact = size === "compact";
   return (
-    <View style={styles.root}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={[styles.inputRow, error ? styles.inputRowError : undefined]}>
+    <View style={[styles.root, compact && styles.rootCompact]}>
+      <Text style={[styles.label, compact && styles.labelCompact]}>{label}</Text>
+      <View
+        style={[
+          styles.inputRow,
+          compact && styles.inputRowCompact,
+          error ? styles.inputRowError : undefined,
+        ]}
+      >
         <SymbolView
           // @ts-expect-error — platform-specific name object is valid per expo-symbols API
           name={iconName}
@@ -81,10 +93,16 @@ const styles = StyleSheet.create({
   root: {
     gap: 6,
   },
+  rootCompact: {
+    gap: 4,
+  },
   label: {
     fontSize: 13,
     fontWeight: "500",
     color: "#374151",
+  },
+  labelCompact: {
+    fontSize: 12,
   },
   inputRow: {
     flexDirection: "row",
@@ -95,6 +113,10 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: 14,
     height: 50,
+  },
+  inputRowCompact: {
+    height: 44,
+    borderRadius: 12,
   },
   inputRowError: {
     borderColor: "#ef4444",

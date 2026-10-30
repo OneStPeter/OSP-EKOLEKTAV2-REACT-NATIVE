@@ -15,6 +15,11 @@ export function SplashOverlay() {
   const styles = useThemedStyles(createStyles);
   const [visible, setVisible] = useState(true);
 
+  function finish() {
+    setVisible(false);
+    onFinish?.();
+  }
+
   // Logo
   const logoOpacity = useSharedValue(0);
   const logoScale = useSharedValue(0.3);
@@ -62,7 +67,7 @@ export function SplashOverlay() {
       1600,
       withTiming(0, { duration: 500 }, (finished) => {
         "worklet";
-        if (finished) runOnJS(setVisible)(false);
+        if (finished) runOnJS(finish)();
       }),
     );
   }, []);

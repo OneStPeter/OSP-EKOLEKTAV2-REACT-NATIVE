@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { useSegments } from "expo-router";
-import { Bell, Menu, Search } from "lucide-react-native";
+import { Bell, ChevronLeft, Menu, Search } from "lucide-react-native";
 import React from "react";
 import {
   Platform,
@@ -35,6 +35,13 @@ const SCREEN_TITLES: Record<string, string> = {
 
 const SCREEN_SUBTITLES: Record<string, string> = {
   mcpr: "Monthly Collection & Performance",
+  payment: "Payment",
+  viewDrs: "View DRS",
+  encodeDeposit: "Encode Deposit",
+  disbursement: "Disbursement",
+  planholderProfile: "Clear access to every planholder detail.",
+  profile: "Profile",
+  explore: "Explore",
 };
 
 const C = {
@@ -50,6 +57,9 @@ const C = {
     badgeBg: "#dc2626",
     badgeText: "#ffffff",
     subtitle: "#9ca3af",
+    backColor: "#047857",
+    pillBorder: "#a7f3d0",
+    pillText: "#047857",
   },
   dark: {
     bg: "#0d1f1a",
@@ -63,6 +73,9 @@ const C = {
     badgeBg: "#dc2626",
     badgeText: "#ffffff",
     subtitle: "#9ca3af",
+    backColor: "#34d399",
+    pillBorder: "#065f46",
+    pillText: "#34d399",
   },
 };
 
@@ -77,7 +90,7 @@ export function AppHeader({
   onSearchPress,
   onNotificationPress,
 }: Props) {
-  const { toggleDrawer, scrollY } = useNav();
+  const { toggleDrawer, scrollY, headerOverride } = useNav();
   const insets = useSafeAreaInsets();
   const c = C.light;
   const { width } = useWindowDimensions();
@@ -97,7 +110,12 @@ export function AppHeader({
     (segments[segments.length - 1] as string | undefined) ?? "index";
   const isHome = activeSegment === "index" || activeSegment === "(tabs)";
   const screenTitle = SCREEN_TITLES[activeSegment] ?? activeSegment;
-  const screenSubtitle = SCREEN_SUBTITLES[activeSegment];
+  // A focused screen may override its description, swap the burger for a back
+  // chevron, and mount a trailing action (e.g. the planholder detail view);
+  // anything it omits falls back to the per-route defaults.
+  const screenSubtitle = headerOverride?.subtitle ?? SCREEN_SUBTITLES[activeSegment];
+  const onBack = headerOverride?.onBack;
+  const headerAction = headerOverride?.action;
 
   const badgeCount = Math.min(notificationCount, 99);
 
@@ -118,12 +136,16 @@ export function AppHeader({
         <View style={styles.left}>
           <TouchableOpacity
             style={styles.iconBtn}
-            onPress={toggleDrawer}
-            accessibilityLabel="Open navigation menu"
+            onPress={onBack ?? toggleDrawer}
+            accessibilityLabel={onBack ? "Go back" : "Open navigation menu"}
             accessibilityRole="button"
             activeOpacity={0.72}
           >
-            <Menu size={20} color={c.burgerColor} strokeWidth={2} />
+            {onBack ? (
+              <ChevronLeft size={22} color={c.backColor} strokeWidth={2.2} />
+            ) : (
+              <Menu size={20} color={c.burgerColor} strokeWidth={2} />
+            )}
           </TouchableOpacity>
 
           {isHome ? (
@@ -170,47 +192,68 @@ export function AppHeader({
           )}
         </View>
 
-        {/* ── Right: search + notification bell ── */}
-        <View style={styles.right}>
-          {/* Search icon */}
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={onSearchPress}
-            accessibilityLabel="Search"
-            accessibilityRole="button"
-            activeOpacity={0.72}
-          >
-            <Search size={22} color={c.actionColor} strokeWidth={2} />
-          </TouchableOpacity>
+        {/* ── Right: search + notification bell — home/dashboard only ── */}
+        {isHome && (
+          <View style={styles.right}>
+            {/* Search icon */}
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={onSearchPress}
+              accessibilityLabel="Search"
+              accessibilityRole="button"
+              activeOpacity={0.72}
+            >
+              <Search size={22} color={c.actionColor} strokeWidth={2} />
+            </TouchableOpacity>
 
-          {/* Notification bell with badge */}
+            {/* Notification bell with badge */}
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={onNotificationPress}
+              accessibilityLabel={
+                badgeCount > 0
+                  ? `Notifications, ${badgeCount} unread`
+                  : "Notifications"
+              }
+              accessibilityRole="button"
+              activeOpacity={0.72}
+            >
+              <Bell size={22} color={c.actionColor} strokeWidth={2} />
+              {badgeCount > 0 && (
+                <View
+                  style={[
+                    styles.badge,
+                    { backgroundColor: c.badgeBg },
+                    badgeCount > 9 && styles.badgeWide,
+                  ]}
+                >
+                  <Text style={[styles.badgeText, { color: c.badgeText }]}>
+                    {badgeCount > 9 ? "9+" : String(badgeCount)}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ── Right: screen-provided action pill ── */}
+        {!isHome && headerAction && (
           <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={onNotificationPress}
-            accessibilityLabel={
-              badgeCount > 0
-                ? `Notifications, ${badgeCount} unread`
-                : "Notifications"
-            }
+            style={[
+              styles.actionPill,
+              { borderColor: c.pillBorder, backgroundColor: c.bg },
+            ]}
+            onPress={headerAction.onPress}
+            accessibilityLabel={headerAction.label}
             accessibilityRole="button"
             activeOpacity={0.72}
           >
-            <Bell size={22} color={c.actionColor} strokeWidth={2} />
-            {badgeCount > 0 && (
-              <View
-                style={[
-                  styles.badge,
-                  { backgroundColor: c.badgeBg },
-                  badgeCount > 9 && styles.badgeWide,
-                ]}
-              >
-                <Text style={[styles.badgeText, { color: c.badgeText }]}>
-                  {badgeCount > 9 ? "9+" : String(badgeCount)}
-                </Text>
-              </View>
-            )}
+            <headerAction.icon size={16} color={c.pillText} strokeWidth={2.2} />
+            <Text style={[styles.actionPillText, { color: c.pillText }]}>
+              {headerAction.label}
+            </Text>
           </TouchableOpacity>
-        </View>
+        )}
       </View>
     </Animated.View>
   );
@@ -313,6 +356,21 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.8,
     textTransform: "uppercase",
+  },
+
+  // ── Screen-provided action pill ────────────────────
+  actionPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    height: 32,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  actionPillText: {
+    fontSize: 12,
+    fontWeight: "700",
   },
 
   // ── Right cluster ──────────────────────────────────
