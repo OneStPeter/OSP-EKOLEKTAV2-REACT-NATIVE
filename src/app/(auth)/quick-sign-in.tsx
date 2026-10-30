@@ -156,6 +156,10 @@ export default function QuickSignInScreen() {
     router.push("/(auth)/login");
   }
 
+  function handleSignUp() {
+    router.push("/(auth)/sign-up");
+  }
+
   function handlePlanholderPortal() {
     // router.push("/(tabs)/planholderProfile");
   }
@@ -296,7 +300,11 @@ export default function QuickSignInScreen() {
                   style={styles.signupRow}
                 >
                   <Text style={styles.signupText}>No Account? </Text>
-                  <TouchableOpacity activeOpacity={0.7}>
+                  <TouchableOpacity
+                    onPress={handleSignUp}
+                    activeOpacity={0.7}
+                    hitSlop={8}
+                  >
                     <Text style={styles.signupLink}>Sign up.</Text>
                   </TouchableOpacity>
                 </Animated.View>

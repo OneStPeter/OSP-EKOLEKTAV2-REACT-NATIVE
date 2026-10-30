@@ -14,8 +14,13 @@ const GREEN_DARK = "#022c22";
 const GREEN_MID = "#064e3b";
 const GREEN_ACCENT = "#6ee7b7";
 
-export function SplashOverlay() {
+export function SplashOverlay({ onFinish }: { onFinish?: () => void }) {
   const [visible, setVisible] = useState(true);
+
+  function finish() {
+    setVisible(false);
+    onFinish?.();
+  }
 
   // Logo
   const logoOpacity = useSharedValue(0);
@@ -64,7 +69,7 @@ export function SplashOverlay() {
       1600,
       withTiming(0, { duration: 500 }, (finished) => {
         "worklet";
-        if (finished) runOnJS(setVisible)(false);
+        if (finished) runOnJS(finish)();
       }),
     );
   }, []);

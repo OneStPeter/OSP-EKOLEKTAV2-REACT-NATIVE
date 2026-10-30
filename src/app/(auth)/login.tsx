@@ -334,6 +334,23 @@ export default function LoginScreen() {
                     </TouchableOpacity>
                   </Animated.View>
 
+                  {/* Sign up link */}
+                  <Animated.View
+                    entering={FadeInUp.duration(400).delay(460)}
+                    style={styles.signUpRow}
+                  >
+                    <Text style={styles.signUpText}>
+                      Don&apos;t have an account?
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => router.push("/(auth)/sign-up")}
+                      activeOpacity={0.7}
+                      hitSlop={8}
+                    >
+                      <Text style={styles.forgotLink}>Sign up</Text>
+                    </TouchableOpacity>
+                  </Animated.View>
+
                   {/* Divider */}
                   {/* <Animated.View entering={FadeInUp.duration(400).delay(470)}>
                     <Divider />
@@ -593,6 +610,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#ffffff",
     letterSpacing: 0.2,
+  },
+
+  // ── Sign up link ──
+  signUpRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 4,
+  },
+  signUpText: {
+    fontSize: 13,
+    color: "#4b5563",
   },
 
   // ── Divider ──
