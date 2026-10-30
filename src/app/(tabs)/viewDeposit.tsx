@@ -7,37 +7,37 @@ import {
   LayoutList,
   Trash2,
 } from "lucide-react-native";
-import React, { useMemo, useState } from "react";
 import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
-} from "react-native";
-import Animated from "react-native-reanimated";
+  alpha,
+  BaseButton,
+  BaseIconButton,
+  BaseText,
+  BottomSheet,
+  DataTable,
+  DrawerPanel,
+  EmptyStateCard,
+  FloatingLabelInput,
+  FloatingLabelSelect,
+  LookupField,
+  MessageDialog,
+  OSPBadge,
+  RowItem,
+  SectionTitle,
+  Small,
+  useTheme,
+  useThemedStyles,
+  type ColorToken,
+  type DataTableProps,
+  type FloatingLabelSelectOption,
+  type LookupColumn,
+  type OSPBadgeType,
+} from "osp-ui-kit-native";
+import React, { useMemo, useState, type ReactNode } from "react";
+import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { APP_HEADER_HEIGHT } from "@/components/navigation/AppHeader";
-import { BOTTOM_NAV_HEIGHT } from "@/components/navigation/BottomNavBar";
-import type { TableColDef } from "@/components/ui";
-import {
-  AlertModal,
-  AppButton,
-  Badge,
-  BRAND_COLORS,
-  ConfirmModal,
-  EmptyState,
-  FloatingLabelInput,
-  LookupField,
-  RowItem,
-  SwipeDismissModal,
-  Table,
-  theme,
-  useAlertModal,
-  type FloatingLabelSelectOption,
-} from "@/components/ui";
-import { useScrollNav } from "@/hooks/use-scroll-nav";
+import { DateTimeField } from "@/components/DateTimeField";
+import { useAlertModal } from "@/hooks/use-alert-modal";
 import {
   DEPOSIT_ITEMS,
   type DepositItem,
@@ -45,15 +45,23 @@ import {
   type DepositStatus,
 } from "@/data/deposit";
 
-// ── Static data ─────────────────────────────────────────────────────────────
-
-const STATUS_STYLES: Record<DepositStatus, { color: string; bg: string }> = {
-  Pending: { color: theme.color.warning, bg: theme.color.warningBg },
-  Validated: { color: theme.color.accent, bg: theme.color.successBg },
-  "For Deposit": { color: theme.color.info, bg: theme.color.infoBg },
-};
+// ── Types ────────────────────────────────────────────────────────────────────
 
 type BankBranch = { code: string; name: string; branch: string };
+
+// Typed through the kit so the screen needs no direct @tanstack import.
+type ColumnDefs<T> = DataTableProps<T>["columns"];
+
+// ── Static data ─────────────────────────────────────────────────────────────
+
+const STATUS_STYLES: Record<
+  DepositStatus,
+  { badge: OSPBadgeType; color: ColorToken }
+> = {
+  Pending: { badge: "warning", color: "warning" },
+  Validated: { badge: "success", color: "success" },
+  "For Deposit": { badge: "info", color: "info" },
+};
 
 const BANK_BRANCHES: BankBranch[] = [
   { code: "BDO", name: "Banco De Oro", branch: "Quiapo" },
@@ -92,68 +100,248 @@ function fmtDateTime(iso: string) {
 
 // ── Column definitions ───────────────────────────────────────────────────────
 
-const PAYMENT_COLUMNS: TableColDef<DepositPaymentRow>[] = [
+const PAYMENT_COLUMNS: ColumnDefs<DepositPaymentRow> = [
   {
-    key: "SI",
-    label: "SI No.",
-    width: 88,
-    renderCell: (r) => <Text style={styles.cellStrong}>{r.SI}</Text>,
-  },
-  {
-    key: "Name",
-    label: "Name",
-    width: 140,
-    renderCell: (r) => (
-      <Text style={styles.cellBody} numberOfLines={2}>
-        {r.Name}
-      </Text>
+    accessorKey: "SI",
+    header: "SI No.",
+    meta: { width: 88 },
+    cell: ({ row }) => (
+      <BaseText fontSize="xs" fontWeight="bold">
+        {row.original.SI}
+      </BaseText>
     ),
   },
   {
-    key: "InstNo",
-    label: "Inst. No",
-    width: 60,
-    align: "center",
-    renderCell: (r) => (
-      <Text style={[styles.cellBody, { textAlign: "center" }]}>
-        {r.InstNo}
-      </Text>
+    accessorKey: "Name",
+    header: "Name",
+    meta: { width: 140 },
+    cell: ({ row }) => (
+      <BaseText fontSize="xs" color="mutedStrong" numberOfLines={2}>
+        {row.original.Name}
+      </BaseText>
     ),
   },
   {
-    key: "PayClass",
-    label: "Class",
-    width: 76,
-    renderCell: (r) => (
-      <Badge
-        label={r.PayClass}
-        color={theme.color.accent}
-        backgroundColor={theme.color.accent + "18"}
-      />
+    accessorKey: "InstNo",
+    header: "Inst. No",
+    meta: { width: 60 },
+    cell: ({ row }) => (
+      <BaseText fontSize="xs" color="mutedStrong" textAlign="center">
+        {row.original.InstNo}
+      </BaseText>
     ),
   },
   {
-    key: "SIAmount",
-    label: "Amount",
-    width: 100,
-    align: "right",
-    renderCell: (r) => (
-      <Text style={[styles.cellStrong, { textAlign: "right" }]}>
-        {fmt$(r.SIAmount)}
-      </Text>
+    accessorKey: "PayClass",
+    header: "Class",
+    meta: { width: 76 },
+    cell: ({ row }) => (
+      <OSPBadge type="success">{row.original.PayClass}</OSPBadge>
+    ),
+  },
+  {
+    accessorKey: "SIAmount",
+    header: "Amount",
+    meta: { width: 100, numeric: true },
+    cell: ({ row }) => (
+      <BaseText fontSize="xs" fontWeight="bold" textAlign="right">
+        {fmt$(row.original.SIAmount)}
+      </BaseText>
     ),
   },
 ];
+
+const DEPOSIT_LOOKUP_COLUMNS: LookupColumn<DepositItem>[] = [
+  { key: "name", header: "Reference" },
+  {
+    key: "DepositDateTime",
+    header: "Date / Time",
+    render: (_value, row) => fmtDateTime(row.DepositDateTime),
+  },
+  {
+    key: "Amount",
+    header: "Amount",
+    render: (_value, row) => fmt$(row.Amount),
+  },
+  {
+    key: "Status",
+    header: "Status",
+    render: (_value, row) => (
+      <OSPBadge type={STATUS_STYLES[row.Status].badge}>{row.Status}</OSPBadge>
+    ),
+  },
+];
+
+// ── Edit sheet ───────────────────────────────────────────────────────────────
+// Bottom sheet on phones, end-side drawer panel on tablets — the same split the
+// old SwipeDismissModal made.
+
+function EditSheet({
+  open,
+  onClose,
+  title,
+  footer,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  footer: ReactNode;
+  children: ReactNode;
+}) {
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const isTablet = width >= 768;
+
+  if (isTablet) {
+    return (
+      <DrawerPanel
+        open={open}
+        onOpenChange={(o) => !o && onClose()}
+        title={title}
+        placement="end"
+        size="md"
+        footer={footer}
+        insets={{ top: insets.top, bottom: insets.bottom }}
+      >
+        {children}
+      </DrawerPanel>
+    );
+  }
+
+  return (
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title={title}
+      footer={footer}
+      bottomInset={insets.bottom}
+    >
+      {children}
+    </BottomSheet>
+  );
+}
 
 // ── Screen ──────────────────────────────────────────────────────────────────
 
 type ViewMode = "list" | "detail";
 
 export default function ViewDepositScreen() {
-  const scrollHandler = useScrollNav();
-  const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-  const isTablet = width >= 768;
+  const theme = useTheme();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      content: { padding: 16, gap: 0 },
+
+      // List header
+      listHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+      listHeaderIcon: {
+        width: 34,
+        height: 34,
+        borderRadius: t.radii.full,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: alpha(t.colors.mutedStrong, 0.12),
+      },
+      lookupWrap: { marginTop: 12 },
+
+      // Deposit list
+      depositList: { gap: 10, marginTop: 14 },
+      depositCard: {
+        position: "relative",
+        overflow: "hidden",
+        borderRadius: t.radii.card,
+        borderWidth: 1,
+        borderColor: t.colors.hairline,
+        backgroundColor: t.colors.surface,
+        paddingLeft: 16,
+        paddingRight: 14,
+        paddingTop: 12,
+        paddingBottom: 10,
+      },
+      depositStripe: {
+        position: "absolute",
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: 4,
+      },
+      depositCardHeader: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+        gap: 8,
+        marginBottom: 8,
+      },
+      depositCardHeaderLeft: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        flex: 1,
+      },
+      depositIconWrap: {
+        width: 30,
+        height: 30,
+        borderRadius: t.radii.full,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: alpha(t.colors.mutedStrong, 0.12),
+      },
+      depositDateRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        marginTop: 2,
+      },
+      depositChips: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 8,
+        marginBottom: 8,
+      },
+      chip: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: t.radii.full,
+        backgroundColor: t.colors.canvas,
+        maxWidth: 220,
+      },
+      depositFooter: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: t.colors.hairline,
+        paddingTop: 8,
+      },
+
+      // Detail header
+      detailHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+        marginBottom: 4,
+      },
+      tableWrap: { marginTop: 12 },
+
+      // Deposit meta
+      metaBox: {
+        backgroundColor: t.colors.canvas,
+        borderRadius: t.radii.sm,
+        borderWidth: 1,
+        borderColor: t.colors.hairline,
+        paddingHorizontal: 10,
+        marginTop: 12,
+      },
+      detailActions: { gap: 8, marginTop: 14 },
+
+      // Encode Supplementary sheet
+      formGrid: { flexDirection: "column", gap: 12 },
+      suppActions: { flexDirection: "row", gap: 10 },
+    }),
+  );
 
   const [items, setItems] = useState<DepositItem[]>(DEPOSIT_ITEMS);
   const [view, setView] = useState<ViewMode>("list");
@@ -226,177 +414,202 @@ export default function ViewDepositScreen() {
 
   return (
     <>
-      <Animated.ScrollView
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        style={{ backgroundColor: theme.color.bg }}
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: APP_HEADER_HEIGHT + insets.top + 16,
-            paddingBottom: BOTTOM_NAV_HEIGHT + insets.bottom + 16,
-            paddingHorizontal: isTablet ? 24 : 16,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
+      <View style={[styles.content, { paddingTop: 16, paddingHorizontal: 8 }]}>
         {view === "list" ? (
           <>
             {/* Header */}
             <View style={styles.listHeader}>
               <View style={styles.listHeaderIcon}>
-                <LayoutList size={16} color={theme.color.body} />
+                <LayoutList size={16} color={theme.colors.mutedStrong} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.listHeaderTitle}>Validated Deposits</Text>
-                <Text style={styles.listHeaderSubtitle}>
+                <SectionTitle>Validated Deposits</SectionTitle>
+                <Small color="mutedStrong" style={{ marginTop: 1 }}>
                   {sortedItems.length} deposit(s)
-                </Text>
+                </Small>
               </View>
             </View>
 
             {/* Search */}
-            <LookupField<DepositItem>
-              placeholder="Search by reference…"
-              modalTitle="Search Deposit"
-              data={sortedItems}
-              searchKeys={["name"]}
-              value={null}
-              onSelect={(item) => item && handleSelectItem(item)}
-              renderDisplay={(item) => item.name}
-              renderMeta={(item) =>
-                `${fmtDateTime(item.DepositDateTime)} · ${fmt$(item.Amount)}`
-              }
-              keyExtractor={(item) => item.id}
-              style={{ marginTop: 12 }}
-            />
+            <View style={styles.lookupWrap}>
+              <LookupField<DepositItem>
+                placeholder="Search by reference…"
+                modalTitle="Search Deposit"
+                dataSource={sortedItems}
+                searchKeys={["name"]}
+                columns={DEPOSIT_LOOKUP_COLUMNS}
+                value={null}
+                onSelect={(item) => item && handleSelectItem(item)}
+                renderDisplay={(item) => item.name}
+                variant="search"
+              />
+            </View>
 
             {/* Deposit list */}
             <View style={styles.depositList}>
               {sortedItems.length === 0 ? (
-                <EmptyState
+                <EmptyStateCard
                   icon={Banknote}
                   title="No deposits"
-                  message="Validated deposits will appear here."
+                  description="Validated deposits will appear here."
                 />
               ) : (
                 sortedItems.map((item) => {
-                  const style = STATUS_STYLES[item.Status];
+                  const status = STATUS_STYLES[item.Status];
                   return (
-                    <TouchableOpacity
+                    <Pressable
                       key={item.id}
-                      activeOpacity={0.8}
                       onPress={() => handleSelectItem(item)}
-                      style={styles.depositCard}
+                      accessibilityRole="button"
+                      style={({ pressed }) => [
+                        styles.depositCard,
+                        pressed && { opacity: 0.8 },
+                      ]}
                     >
                       <View
                         style={[
                           styles.depositStripe,
-                          { backgroundColor: style.color },
+                          { backgroundColor: theme.colors[status.color] },
                         ]}
                       />
                       <View style={styles.depositCardHeader}>
                         <View style={styles.depositCardHeaderLeft}>
                           <View style={styles.depositIconWrap}>
-                            <Banknote size={16} color={theme.color.body} />
+                            <Banknote
+                              size={16}
+                              color={theme.colors.mutedStrong}
+                            />
                           </View>
                           <View style={{ flex: 1 }}>
-                            <Text style={styles.depositName} numberOfLines={1}>
+                            <BaseText
+                              fontSize="sm"
+                              fontWeight="bold"
+                              color="heading"
+                              numberOfLines={1}
+                            >
                               {item.name}
-                            </Text>
+                            </BaseText>
                             <View style={styles.depositDateRow}>
-                              <Calendar size={11} color={theme.color.muted} />
-                              <Text style={styles.depositDateText}>
+                              <Calendar size={11} color={theme.colors.muted} />
+                              <Small color="muted">
                                 {fmtDateTime(item.DepositDateTime)}
-                              </Text>
+                              </Small>
                             </View>
                           </View>
                         </View>
-                        <Badge
-                          label={item.Status}
-                          color={style.color}
-                          backgroundColor={style.bg}
-                        />
+                        <OSPBadge type={status.badge}>{item.Status}</OSPBadge>
                       </View>
 
                       <View style={styles.depositChips}>
                         <View style={styles.chip}>
-                          <Banknote size={11} color={theme.color.body} />
-                          <Text style={styles.chipText}>
+                          <Banknote size={11} color={theme.colors.mutedStrong} />
+                          <Small fontWeight="semibold" color="mutedStrong">
                             {fmt$(item.Amount)}
-                          </Text>
+                          </Small>
                         </View>
                         {item.BankBranch ? (
                           <View style={styles.chip}>
-                            <Landmark size={11} color={theme.color.body} />
-                            <Text style={styles.chipText} numberOfLines={1}>
+                            <Landmark
+                              size={11}
+                              color={theme.colors.mutedStrong}
+                            />
+                            <Small
+                              fontWeight="semibold"
+                              color="mutedStrong"
+                              numberOfLines={1}
+                            >
                               {item.BankBranch}
-                            </Text>
+                            </Small>
                           </View>
                         ) : null}
                       </View>
 
                       <View style={styles.depositFooter}>
-                        <Text style={styles.depositFooterHint}>
-                          Tap to view details
-                        </Text>
-                        <ChevronRight size={14} color={theme.color.muted} />
+                        <Small color="muted">Tap to view details</Small>
+                        <ChevronRight size={14} color={theme.colors.muted} />
                       </View>
-                    </TouchableOpacity>
+                    </Pressable>
                   );
                 })
               )}
             </View>
           </>
         ) : !selectedItem ? (
-          <EmptyState
+          <EmptyStateCard
             icon={Banknote}
             title="No Deposit Selected"
-            message="Select a deposit from the list to view details"
+            description="Select a deposit from the list to view details"
           />
         ) : (
           (() => {
-            const style = STATUS_STYLES[selectedItem.Status];
+            const status = STATUS_STYLES[selectedItem.Status];
             return (
               <>
                 {/* Detail header */}
                 <View style={styles.detailHeader}>
-                  <TouchableOpacity
-                    onPress={handleBackToList}
-                    style={styles.backBtn}
+                  <BaseIconButton
+                    icon={ChevronLeft}
+                    accessibilityLabel="Back to deposit list"
+                    variant="outline"
+                    size="sm"
+                    rounded="full"
                     hitSlop={8}
-                  >
-                    <ChevronLeft size={18} color={theme.color.accent} />
-                  </TouchableOpacity>
+                    onPress={handleBackToList}
+                  />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.detailTitle} numberOfLines={1}>
+                    <SectionTitle numberOfLines={1}>
                       {selectedItem.name}
-                    </Text>
+                    </SectionTitle>
                     <View style={styles.depositDateRow}>
-                      <Calendar size={11} color={theme.color.muted} />
-                      <Text style={styles.depositDateText}>
+                      <Calendar size={11} color={theme.colors.muted} />
+                      <Small color="muted">
                         {fmtDateTime(selectedItem.DepositDateTime)}
-                      </Text>
+                      </Small>
                     </View>
                   </View>
-                  <Badge
-                    label={selectedItem.Status}
-                    color={style.color}
-                    backgroundColor={style.bg}
-                  />
+                  <OSPBadge type={status.badge}>{selectedItem.Status}</OSPBadge>
                 </View>
 
-                <Table<DepositPaymentRow>
-                  title="Payments"
-                  subtitle={`${selectedItem.payments.length} record(s)`}
-                  data={selectedItem.payments}
-                  columns={PAYMENT_COLUMNS}
-                  keyExtractor={(r) => r.SI}
-                  emptyTitle="No payments"
-                  emptyMessage="This deposit has no linked payments."
-                  style={{ marginTop: 12 }}
-                />
+                <View style={styles.tableWrap}>
+                  <DataTable<DepositPaymentRow>
+                    title="Payments"
+                    description={`${selectedItem.payments.length} record(s)`}
+                    data={selectedItem.payments}
+                    columns={PAYMENT_COLUMNS}
+                    getRowId={(r) => r.SI}
+                    size="sm"
+                    features={{
+                      search: false,
+                      sorting: true,
+                      pagination: false,
+                      columnToggle: false,
+                      filtering: false,
+                      selection: false,
+                      detailSidebar: false,
+                    }}
+                    emptyState={
+                      <EmptyStateCard
+                        title="No payments"
+                        description="This deposit has no linked payments."
+                      />
+                    }
+                    mobileConfig={{
+                      viewMode: "card",
+                      primaryField: "Name",
+                      titleTransform: "none",
+                      secondaryField: "SI",
+                      visibleFields: ["InstNo", "PayClass", "SIAmount"],
+                      labelMap: {
+                        InstNo: "Inst. No",
+                        PayClass: "Class",
+                        SIAmount: "Amount",
+                      },
+                      valueFormatter: {
+                        SIAmount: (v) => fmt$(Number(v) || 0),
+                      },
+                    }}
+                  />
+                </View>
 
                 <View style={styles.metaBox}>
                   <RowItem
@@ -420,251 +633,112 @@ export default function ViewDepositScreen() {
                 </View>
 
                 <View style={styles.detailActions}>
-                  <AppButton size="lg" onPress={handleOpenSupplementary}>
-                    Encode Supplementary
-                  </AppButton>
-                  <AppButton
-                    variant="destructive"
+                  <BaseButton
                     size="lg"
-                    leftIcon={<Trash2 size={15} color="#fff" />}
+                    fullWidth
+                    onPress={handleOpenSupplementary}
+                  >
+                    Encode Supplementary
+                  </BaseButton>
+                  <BaseButton
+                    tone="danger"
+                    size="lg"
+                    fullWidth
+                    leftIcon={Trash2}
                     onPress={handleDelete}
                   >
                     Delete Deposit
-                  </AppButton>
+                  </BaseButton>
                 </View>
               </>
             );
           })()
         )}
-      </Animated.ScrollView>
+      </View>
 
       {/* Encode Supplementary sheet */}
-      <SwipeDismissModal
-        visible={supplementaryOpen}
-        onDismiss={() => setSupplementaryOpen(false)}
+      <EditSheet
+        open={supplementaryOpen}
+        onClose={() => setSupplementaryOpen(false)}
         title={`Encode Supplementary — ${selectedItem?.name ?? ""}`}
-        sheetWidth={460}
-      >
-        <View style={styles.suppBody}>
-          <View style={styles.formGrid}>
-            <FloatingLabelInput
-              label="Deposit Date Time"
-              type="datetime"
-              value={fmtDateTime(suppDate.toISOString())}
-              onChangeText={() => {}}
-              pickerValue={suppDate}
-              onChangeValue={setSuppDate}
-            />
-            <FloatingLabelInput
-              label="Account No#"
-              type="number"
-              value={suppAccountNo}
-              onChangeText={setSuppAccountNo}
-            />
-            <FloatingLabelInput
-              label="Bank Branch"
-              type="select"
-              value={suppBankBranch}
-              onChangeText={setSuppBankBranch}
-              options={BANK_BRANCH_OPTIONS}
-              onSelectOption={(opt) => setSuppBankBranch(opt.label)}
-              selectModalTitle="Select Bank Branch"
-              searchable
-              searchPlaceholder="Search bank or branch…"
-            />
-            <FloatingLabelInput
-              label="Bank Code"
-              value={suppBankCode}
-              onChangeText={setSuppBankCode}
-            />
-            <FloatingLabelInput
-              label="Amount"
-              type="number"
-              value={suppAmount}
-              onChangeText={setSuppAmount}
-            />
-            <FloatingLabelInput
-              label="Deposited By"
-              value={suppDepositedBy}
-              onChangeText={setSuppDepositedBy}
-            />
-          </View>
-
+        footer={
           <View style={styles.suppActions}>
-            <AppButton
-              variant="secondary"
+            <BaseButton
+              variant="outline"
               size="lg"
               style={{ flex: 1 }}
               onPress={() => setSupplementaryOpen(false)}
             >
               Cancel
-            </AppButton>
-            <AppButton
+            </BaseButton>
+            <BaseButton
               size="lg"
               style={{ flex: 1 }}
               onPress={handleSaveSupplementary}
             >
               Save
-            </AppButton>
+            </BaseButton>
           </View>
+        }
+      >
+        <View style={styles.formGrid}>
+          <DateTimeField
+            label="Deposit Date Time"
+            mode="datetime"
+            value={suppDate}
+            onChange={setSuppDate}
+          />
+          <FloatingLabelInput
+            label="Account No#"
+            type="number"
+            value={suppAccountNo}
+            onValueChange={setSuppAccountNo}
+          />
+          <FloatingLabelSelect
+            label="Bank Branch"
+            value={suppBankBranch}
+            onValueChange={setSuppBankBranch}
+            options={BANK_BRANCH_OPTIONS}
+          />
+          <FloatingLabelInput
+            label="Bank Code"
+            value={suppBankCode}
+            onValueChange={setSuppBankCode}
+          />
+          <FloatingLabelInput
+            label="Amount"
+            type="number"
+            value={suppAmount}
+            onValueChange={setSuppAmount}
+          />
+          <FloatingLabelInput
+            label="Deposited By"
+            value={suppDepositedBy}
+            onValueChange={setSuppDepositedBy}
+          />
         </View>
-      </SwipeDismissModal>
+      </EditSheet>
 
       {/* Delete confirmation */}
-      <ConfirmModal
-        visible={confirmDeleteVisible}
-        onCancel={() => setConfirmDeleteVisible(false)}
+      <MessageDialog
+        open={confirmDeleteVisible}
+        onOpenChange={(o) => !o && setConfirmDeleteVisible(false)}
         onConfirm={performDelete}
-        variant="error"
+        variant="confirmation"
         title="Delete Deposit"
         message={`Do you want to delete ${selectedItem?.name}? This cannot be undone.`}
-        confirmLabel="Delete"
-        destructive
+        confirmText="Delete"
       />
 
       {/* Status alert */}
-      <AlertModal
-        visible={alertState.visible}
-        onDismiss={dismissAlert}
+      <MessageDialog
+        open={alertState.open}
+        onOpenChange={(o) => !o && dismissAlert()}
         variant={alertState.variant}
         title={alertState.title}
         message={alertState.message}
+        confirmText="OK"
       />
     </>
   );
 }
-
-// ── Styles ───────────────────────────────────────────────────────────────────
-
-const styles = StyleSheet.create({
-  content: { padding: 16, gap: 0 },
-
-  // List header
-  listHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
-  listHeaderIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: theme.radius.full,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: BRAND_COLORS.mutedBg,
-  },
-  listHeaderTitle: { fontSize: 16, fontWeight: "700", color: theme.color.ink },
-  listHeaderSubtitle: { fontSize: 12, color: theme.color.muted, marginTop: 1 },
-
-  // Deposit list
-  depositList: { gap: 10, marginTop: 14 },
-  depositCard: {
-    position: "relative",
-    overflow: "hidden",
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    backgroundColor: theme.color.card,
-    paddingLeft: 16,
-    paddingRight: 14,
-    paddingTop: 12,
-    paddingBottom: 10,
-  },
-  depositStripe: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 4,
-  },
-  depositCardHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 8,
-    marginBottom: 8,
-  },
-  depositCardHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flex: 1,
-  },
-  depositIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: theme.radius.full,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: BRAND_COLORS.mutedBg,
-  },
-  depositName: { fontSize: 14, fontWeight: "700", color: theme.color.ink },
-  depositDateRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 2,
-  },
-  depositDateText: { fontSize: 11, color: theme.color.muted },
-  depositChips: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 8,
-  },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: theme.radius.full,
-    backgroundColor: BRAND_COLORS.subtleBg,
-    maxWidth: 220,
-  },
-  chipText: { fontSize: 11, fontWeight: "600", color: theme.color.body },
-  depositFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.color.border,
-    paddingTop: 8,
-  },
-  depositFooterHint: { fontSize: 11, color: theme.color.muted },
-
-  // Detail header
-  detailHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 4,
-  },
-  backBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: theme.radius.full,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.color.card,
-  },
-  detailTitle: { fontSize: 15, fontWeight: "700", color: theme.color.ink },
-
-  // Deposit meta
-  metaBox: {
-    backgroundColor: BRAND_COLORS.subtleBg,
-    borderRadius: theme.radius.sm,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    paddingHorizontal: 10,
-    marginTop: 12,
-  },
-  detailActions: { gap: 8, marginTop: 14 },
-
-  // Encode Supplementary sheet
-  suppBody: { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 8 },
-  formGrid: { flexDirection: "column", gap: 12 },
-  suppActions: { flexDirection: "row", gap: 10, marginTop: 16 },
-
-  // Table cells
-  cellStrong: { fontSize: 12, fontWeight: "700", color: theme.color.ink },
-  cellBody: { fontSize: 12, color: theme.color.body },
-});

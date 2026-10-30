@@ -1,59 +1,61 @@
+import { useRouter } from "expo-router";
 import {
   Calendar,
   Camera,
   ChevronDown,
-  ChevronRight,
   Clipboard,
   CreditCard,
   FileText,
   Minus,
   Plus,
-  Printer,
-  Receipt,
   Search,
   Trash2,
   User,
 } from "lucide-react-native";
-import { useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import type {
+  DataTableProps,
+  LookupColumn,
+  StPeterTheme,
+} from "osp-ui-kit-native";
 import {
-  ActivityIndicator,
+  alpha,
+  BaseButton,
+  BaseIconButton,
+  BaseText,
+  BottomSheet,
+  Caption,
+  Card,
+  DataTable,
+  DrawerPanel,
+  EmptyStateCard,
+  FloatingLabelInput,
+  FloatingLabelSelect,
+  FormStepper,
+  InfoItem,
+  LookupField,
+  MessageDialog,
+  OSPBadge,
+  PrintIconButton,
+  RowItem,
+  SectionTitle,
+  SegmentedControl,
+  Small,
+  useTheme,
+  useThemedStyles,
+} from "osp-ui-kit-native";
+import React, { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  Pressable,
   Share,
   StyleSheet,
-  Text,
-  TouchableOpacity,
   useWindowDimensions,
   View,
 } from "react-native";
-import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { APP_HEADER_HEIGHT } from "@/components/navigation/AppHeader";
-import { BOTTOM_NAV_HEIGHT } from "@/components/navigation/BottomNavBar";
-import type { StepperStep, TableColDef } from "@/components/ui";
-import {
-  AlertModal,
-  AppButton,
-  AppCaption,
-  Badge,
-  BRAND_COLORS,
-  Card,
-  ConfirmModal,
-  EmptyState,
-  FloatingLabelInput,
-  InfoRow,
-  LookupField,
-  PillSelect,
-  RowItem,
-  SectionHeader,
-  Stepper,
-  SwipeDismissModal,
-  Table,
-  theme,
-  useAlertModal,
-} from "@/components/ui";
+import { DateTimeField } from "@/components/DateTimeField";
 import { DRS_ITEMS, type DrsItem } from "@/data/drs";
-import { useScrollNav } from "@/hooks/use-scroll-nav";
+import { useAlertModal } from "@/hooks/use-alert-modal";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -84,11 +86,6 @@ type PaymentRecord = {
 type OptionItem = { value: string; label: string };
 
 // ── Static data ─────────────────────────────────────────────────────────────
-
-const ENCODE_STEPS: StepperStep[] = [
-  { label: "Encode Payment", icon: CreditCard },
-  { label: "Prepare DRS", icon: Clipboard },
-];
 
 const PAY_TYPE_OPTIONS: OptionItem[] = [
   { value: "CH", label: "Cash" },
@@ -124,6 +121,12 @@ const PAY_CLASS_OPTIONS: OptionItem[] = [
   { value: "TL", label: "TAXES AND LICENSES" },
   { value: "UP", label: "UPDATING" },
 ];
+
+// Select shows "CODE — LABEL" as the option label, with the code kept as value.
+const PAY_CLASS_SELECT_OPTIONS = PAY_CLASS_OPTIONS.map((o) => ({
+  value: o.value,
+  label: `${o.value} — ${o.label}`,
+}));
 
 const PLANHOLDER_LOOKUP: PlanholderLookupItem[] = [
   {
@@ -179,6 +182,13 @@ function toIsoDate(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
     d.getDate(),
   ).padStart(2, "0")}`;
+}
+
+/** Parses "YYYY-MM-DD" as a local date (`new Date(iso)` would read it as UTC). */
+function fromIsoDate(iso: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
 }
 
 function todayIso() {
@@ -251,14 +261,77 @@ function computePayments(installmentAmount: number) {
   };
 }
 
+// ── Lookup columns ───────────────────────────────────────────────────────────
+
+const PLANHOLDER_LOOKUP_COLUMNS: LookupColumn<PlanholderLookupItem>[] = [
+  { key: "LPANo", header: "LPA No." },
+  {
+    key: "LastName",
+    header: "Name",
+    render: (_value, row) => fullPlanholderName(row),
+  },
+  { key: "PlanDescription", header: "Plan" },
+];
+
+// ── Responsive sheet (bottom sheet on phone, side drawer on tablet) ──────────
+
+function ResponsiveSheet({
+  open,
+  onClose,
+  title,
+  isTablet,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  isTablet: boolean;
+  children: ReactNode;
+}) {
+  const insets = useSafeAreaInsets();
+  if (isTablet) {
+    return (
+      <DrawerPanel
+        open={open}
+        onOpenChange={(o) => !o && onClose()}
+        title={title}
+        placement="end"
+        size="md"
+      >
+        {children}
+      </DrawerPanel>
+    );
+  }
+  return (
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title={title}
+      bottomInset={insets.bottom}
+    >
+      {children}
+    </BottomSheet>
+  );
+}
+
+// ── Table cells ──────────────────────────────────────────────────────────────
+
+// `@tanstack/react-table` is only a dependency of the kit, so take its
+// `ColumnDef<T>[]` through the kit's own DataTable props.
+type PaymentColumns = DataTableProps<PaymentRecord>["columns"];
+
+function payClassBadge(r: PaymentRecord) {
+  return <OSPBadge type="info">{r.PayClass}</OSPBadge>;
+}
+
 // ── Screen ──────────────────────────────────────────────────────────────────
 
 export default function EncodePaymentScreen() {
-  const scrollHandler = useScrollNav();
-  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
   const router = useRouter();
+  const theme = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   const [selectedPlanholder, setSelectedPlanholder] =
     useState<PlanholderLookupItem | null>(null);
@@ -294,11 +367,6 @@ export default function EncodePaymentScreen() {
   const computed = useMemo(
     () => computePayments(installmentAmount),
     [installmentAmount],
-  );
-
-  const selectedPayClass = useMemo(
-    () => PAY_CLASS_OPTIONS.find((o) => o.value === paymentClass) ?? null,
-    [paymentClass],
   );
 
   const drsTotals = useMemo(
@@ -414,16 +482,17 @@ export default function EncodePaymentScreen() {
     setPayments((prev) => prev.filter((p) => p.SI !== si));
   }
 
-  function handleStepPress(index: number) {
-    if (index === 1 && payments.length === 0) {
+  // Gate for leaving the "Encode Payment" step (Next button or step header).
+  function validateEncodeStep() {
+    if (payments.length === 0) {
       showAlert(
         "warning",
         "No Payments Encoded",
         "Encode at least one payment before preparing the DRS.",
       );
-      return;
+      return false;
     }
-    setCurrentStep(index);
+    return true;
   }
 
   function handleGenerateDrs() {
@@ -474,6 +543,7 @@ export default function EncodePaymentScreen() {
   }
 
   function handleConfirmGenerateDrs() {
+    if (payments.length === 0) return;
     setConfirmDrsVisible(true);
   }
 
@@ -504,608 +574,578 @@ export default function EncodePaymentScreen() {
     }
   }
 
-  const columns: TableColDef<PaymentRecord>[] = useMemo(
+  // ── Table columns ──────────────────────────────────────────────────────────
+
+  const columns: PaymentColumns = useMemo(
     () => [
       {
-        key: "SI",
-        label: "SI No.",
-        width: 96,
-        renderCell: (r) => <Text style={styles.cellStrong}>{r.SI}</Text>,
-      },
-      {
-        key: "Name",
-        label: "Name",
-        width: 150,
-        renderCell: (r) => (
-          <Text style={styles.cellBody} numberOfLines={2}>
-            {r.Name}
-          </Text>
+        accessorKey: "SI",
+        header: "SI No.",
+        meta: { width: 96 },
+        cell: ({ row }) => (
+          <BaseText fontSize="xs" fontWeight="bold" color="heading">
+            {row.original.SI}
+          </BaseText>
         ),
       },
       {
-        key: "InstNo",
-        label: "Inst. No",
-        width: 64,
-        align: "center",
-        renderCell: (r) => (
-          <Text style={[styles.cellBody, { textAlign: "center" }]}>
-            {r.InstNo}
-          </Text>
+        accessorKey: "Name",
+        header: "Name",
+        meta: { width: 150 },
+        cell: ({ row }) => (
+          <BaseText fontSize="xs" numberOfLines={2}>
+            {row.original.Name}
+          </BaseText>
         ),
       },
       {
-        key: "PayClass",
-        label: "Pay Class",
-        width: 88,
-        renderCell: (r) => (
-          <Badge
-            label={r.PayClass}
-            color={theme.color.accent}
-            backgroundColor={theme.color.accent + "18"}
-          />
+        accessorKey: "InstNo",
+        header: "Inst. No",
+        meta: { width: 64 },
+        cell: ({ row }) => (
+          <BaseText fontSize="xs" textAlign="center">
+            {row.original.InstNo}
+          </BaseText>
         ),
       },
       {
-        key: "SIAmount",
-        label: "Amount",
-        width: 104,
-        align: "right",
-        renderCell: (r) => (
-          <Text style={[styles.cellStrong, { textAlign: "right" }]}>
-            {fmt$(r.SIAmount)}
-          </Text>
+        accessorKey: "PayClass",
+        header: "Pay Class",
+        meta: { width: 88 },
+        cell: ({ row }) => payClassBadge(row.original),
+      },
+      {
+        accessorKey: "SIAmount",
+        header: "Amount",
+        meta: { width: 104, numeric: true },
+        cell: ({ row }) => (
+          <BaseText
+            fontSize="xs"
+            fontWeight="bold"
+            color="heading"
+            textAlign="right"
+          >
+            {fmt$(row.original.SIAmount)}
+          </BaseText>
         ),
       },
       {
-        key: "EncodedDate",
-        label: "Encoded",
-        width: 96,
-        renderCell: (r) => (
-          <Text style={styles.cellMuted}>{fmtDateStr(r.EncodedDate)}</Text>
+        accessorKey: "EncodedDate",
+        header: "Encoded",
+        meta: { width: 96 },
+        cell: ({ row }) => (
+          <BaseText fontSize="xs" color="mutedStrong">
+            {fmtDateStr(row.original.EncodedDate)}
+          </BaseText>
         ),
       },
       {
-        key: "action",
-        label: "",
-        width: 40,
-        align: "center",
-        renderCell: (r) =>
-          r.SI === payments[0]?.SI ? (
-            <TouchableOpacity onPress={() => handleDeleteRow(r.SI)} hitSlop={8}>
-              <Trash2 size={15} color={theme.color.error} />
-            </TouchableOpacity>
+        id: "action",
+        header: "",
+        enableSorting: false,
+        meta: { width: 48 },
+        cell: ({ row }) =>
+          row.original.SI === payments[0]?.SI ? (
+            <BaseIconButton
+              accessibilityLabel="Delete payment"
+              icon={Trash2}
+              variant="ghost"
+              tone="danger"
+              size="sm"
+              onPress={() => handleDeleteRow(row.original.SI)}
+              hitSlop={8}
+            />
           ) : null,
       },
     ],
     [payments],
   );
 
-  const drsColumns: TableColDef<PaymentRecord>[] = useMemo(
+  const drsColumns: PaymentColumns = useMemo(
     () => [
       {
-        key: "SI",
-        label: "SI No.",
-        width: 96,
-        renderCell: (r) => <Text style={styles.cellStrong}>{r.SI}</Text>,
-      },
-      {
-        key: "Name",
-        label: "Name",
-        width: 150,
-        renderCell: (r) => (
-          <Text style={styles.cellBody} numberOfLines={2}>
-            {r.Name}
-          </Text>
+        accessorKey: "SI",
+        header: "SI No.",
+        meta: { width: 96 },
+        cell: ({ row }) => (
+          <BaseText fontSize="xs" fontWeight="bold" color="heading">
+            {row.original.SI}
+          </BaseText>
         ),
       },
       {
-        key: "InstNo",
-        label: "Inst. No",
-        width: 64,
-        align: "center",
-        renderCell: (r) => (
-          <Text style={[styles.cellBody, { textAlign: "center" }]}>
-            {r.InstNo}
-          </Text>
+        accessorKey: "Name",
+        header: "Name",
+        meta: { width: 150 },
+        cell: ({ row }) => (
+          <BaseText fontSize="xs" numberOfLines={2}>
+            {row.original.Name}
+          </BaseText>
         ),
       },
       {
-        key: "PayClass",
-        label: "Pay Class",
-        width: 88,
-        renderCell: (r) => (
-          <Badge
-            label={r.PayClass}
-            color={theme.color.accent}
-            backgroundColor={theme.color.accent + "18"}
-          />
+        accessorKey: "InstNo",
+        header: "Inst. No",
+        meta: { width: 64 },
+        cell: ({ row }) => (
+          <BaseText fontSize="xs" textAlign="center">
+            {row.original.InstNo}
+          </BaseText>
         ),
       },
       {
-        key: "SIAmount",
-        label: "Amount",
-        width: 104,
-        align: "right",
-        renderCell: (r) => (
-          <Text style={[styles.cellStrong, { textAlign: "right" }]}>
-            {fmt$(r.SIAmount)}
-          </Text>
+        accessorKey: "PayClass",
+        header: "Pay Class",
+        meta: { width: 88 },
+        cell: ({ row }) => payClassBadge(row.original),
+      },
+      {
+        accessorKey: "SIAmount",
+        header: "Amount",
+        meta: { width: 104, numeric: true },
+        cell: ({ row }) => (
+          <BaseText
+            fontSize="xs"
+            fontWeight="bold"
+            color="heading"
+            textAlign="right"
+          >
+            {fmt$(row.original.SIAmount)}
+          </BaseText>
         ),
       },
       {
-        key: "Commission",
-        label: "Commission",
-        width: 96,
-        align: "right",
-        renderCell: (r) => (
-          <Text style={[styles.cellBody, { textAlign: "right" }]}>
-            {fmt$(r.Commission)}
-          </Text>
+        accessorKey: "Commission",
+        header: "Commission",
+        meta: { width: 96, numeric: true },
+        cell: ({ row }) => (
+          <BaseText fontSize="xs" textAlign="right">
+            {fmt$(row.original.Commission)}
+          </BaseText>
         ),
       },
     ],
     [],
   );
 
-  return (
-    <>
-      <Animated.ScrollView
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        style={{ backgroundColor: theme.color.bg }}
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: APP_HEADER_HEIGHT + insets.top + 16,
-            paddingBottom: BOTTOM_NAV_HEIGHT + insets.bottom + 16,
-            paddingHorizontal: isTablet ? 24 : 16,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Stepper
-          steps={ENCODE_STEPS}
-          currentStep={currentStep}
-          onStepPress={handleStepPress}
-          style={{ marginBottom: 4 }}
-        />
+  const tableFeatures = {
+    search: false,
+    sorting: false,
+    filtering: false,
+    pagination: true,
+    columnToggle: false,
+    selection: false,
+    detailSidebar: false,
+  };
 
-        {currentStep === 0 && (
-          <>
-            {/* Planholder search trigger */}
-            <LookupField<PlanholderLookupItem>
-              placeholder="Search by Name / LPA#"
-              modalTitle="Search Planholder"
-              data={PLANHOLDER_LOOKUP}
-              searchKeys={["LPANo", "FirstName", "MiddleName", "LastName"]}
-              value={selectedPlanholder}
-              onSelect={setSelectedPlanholder}
-              renderDisplay={planholderDisplayLabel}
-              renderMeta={(item) => `${item.LPANo} · ${item.PlanDescription}`}
-              keyExtractor={(item) => item.LPANo}
-            />
+  // ── Step 1: Encode Payment ─────────────────────────────────────────────────
 
-            {/* Selected planholder summary */}
-            {selectedPlanholder && (
-              <Card
-                style={{ marginTop: 2 }}
-                icon={User}
-                title={fullPlanholderName(selectedPlanholder)}
-                subtitle={selectedPlanholder.LPANo}
-              >
-                <InfoRow
-                  icon={FileText}
-                  label="Plan"
-                  value={selectedPlanholder.PlanDescription}
-                />
-                <View style={styles.infoRowPair}>
-                  <InfoRow
+  const encodeStepContent = (
+    <View style={styles.stepContent}>
+      {/* Planholder search trigger */}
+      <LookupField<PlanholderLookupItem>
+        placeholder="Search by Name / LPA#"
+        modalTitle="Search Planholder"
+        variant="search"
+        dataSource={PLANHOLDER_LOOKUP}
+        columns={PLANHOLDER_LOOKUP_COLUMNS}
+        searchKeys={["LPANo", "FirstName", "MiddleName", "LastName"]}
+        value={selectedPlanholder}
+        onSelect={setSelectedPlanholder}
+        renderDisplay={planholderDisplayLabel}
+      />
+
+      {/* Selected planholder summary */}
+      {selectedPlanholder && (
+        <Card.Root title={fullPlanholderName(selectedPlanholder)}>
+          <Card.Subtitle>{selectedPlanholder.LPANo}</Card.Subtitle>
+          <Card.MainContent>
+            <View style={styles.infoStack}>
+              <InfoItem
+                icon={FileText}
+                label="Plan"
+                value={selectedPlanholder.PlanDescription}
+              />
+              <View style={styles.infoRowPair}>
+                <View style={styles.flex1}>
+                  <InfoItem
                     icon={Calendar}
                     label="Effectivity"
                     value={fmtDateStr(selectedPlanholder.EffectivityDate)}
-                    style={{ flex: 1 }}
                   />
-                  <InfoRow
+                </View>
+                <View style={styles.flex1}>
+                  <InfoItem
                     icon={Calendar}
                     label="Due"
                     value={fmtDateStr(selectedPlanholder.DueDate)}
-                    style={{ flex: 1 }}
                   />
                 </View>
-                <View style={styles.infoRowPair}>
-                  <InfoRow
+              </View>
+              <View style={styles.infoRowPair}>
+                <View style={styles.flex1}>
+                  <InfoItem
                     icon={User}
                     label="Agent"
                     value={selectedPlanholder.FirstName}
-                    style={{ flex: 1 }}
                   />
-                  <InfoRow
+                </View>
+                <View style={styles.flex1}>
+                  <InfoItem
                     icon={User}
                     label="Agent 2"
                     value={selectedPlanholder.LastName}
-                    style={{ flex: 1 }}
                   />
                 </View>
-              </Card>
-            )}
+              </View>
+            </View>
+          </Card.MainContent>
+        </Card.Root>
+      )}
 
-            {/* Payment details */}
-            <Card
-              icon={Receipt}
-              title="Payment Details"
-              subtitle={
-                !selectedPlanholder
-                  ? "Select a planholder first"
-                  : payments.length > 0
-                    ? `${payments.length} payment(s) encoded`
-                    : "Enter payment information"
-              }
-            >
-              {!selectedPlanholder ? (
-                <EmptyState
-                  icon={Search}
-                  title="No Planholder Selected"
-                  message="Search and select a planholder to start entering payment details."
+      {/* Payment details */}
+      <Card.Root title="Payment Details">
+        <Card.Subtitle>
+          {!selectedPlanholder
+            ? "Select a planholder first"
+            : payments.length > 0
+              ? `${payments.length} payment(s) encoded`
+              : "Enter payment information"}
+        </Card.Subtitle>
+        <Card.MainContent>
+          {!selectedPlanholder ? (
+            <EmptyStateCard
+              icon={Search}
+              title="No Planholder Selected"
+              description="Search and select a planholder to start entering payment details."
+            />
+          ) : (
+            <View style={styles.formStack}>
+              <FloatingLabelSelect
+                label="Payment Class"
+                value={paymentClass}
+                onValueChange={setPaymentClass}
+                options={PAY_CLASS_SELECT_OPTIONS}
+              />
+
+              <View style={styles.fieldGroup}>
+                <Small color="mutedStrong" fontWeight="semibold">
+                  Payment Type
+                </Small>
+                <SegmentedControl
+                  options={PAY_TYPE_OPTIONS}
+                  value={paymentType}
+                  onValueChange={setPaymentType}
                 />
-              ) : (
-                <>
-                  <FloatingLabelInput
-                    label="Payment Class"
-                    type="select"
-                    value={
-                      selectedPayClass
-                        ? `${selectedPayClass.value} — ${selectedPayClass.label}`
-                        : ""
-                    }
-                    onChangeText={() => {}}
-                    options={PAY_CLASS_OPTIONS}
-                    onSelectOption={(opt) => setPaymentClass(opt.value)}
-                    selectModalTitle="Select Payment Class"
-                    containerStyle={{ marginBottom: 12 }}
-                  />
-                  <PillSelect
-                    label="Payment Type"
-                    options={PAY_TYPE_OPTIONS}
-                    value={paymentType}
-                    onChange={setPaymentType}
-                  />
+              </View>
 
+              <View style={[styles.formGrid, isTablet && styles.formGridRow]}>
+                <FloatingLabelInput
+                  label="Sales Invoice Number"
+                  value={siNumber}
+                  onValueChange={setSiNumber}
+                  onBlur={() => {
+                    const raw = siNumber.trim();
+                    if (/^\d+$/.test(raw)) setSiNumber(raw.padStart(8, "0"));
+                  }}
+                  keyboardType="number-pad"
+                  containerStyle={isTablet ? styles.formGridItem : undefined}
+                />
+                <FloatingLabelInput
+                  label="Sales Invoice Extension"
+                  value={siExtension}
+                  onValueChange={setSiExtension}
+                  containerStyle={isTablet ? styles.formGridItem : undefined}
+                />
+                <DateTimeField
+                  label="Sales Invoice Date"
+                  value={fromIsoDate(siDate)}
+                  onChange={(d) => setSiDate(toIsoDate(d))}
+                  format={toIsoDate}
+                  containerStyle={isTablet ? styles.formGridItem : undefined}
+                />
+              </View>
+
+              <View style={styles.stepperRow}>
+                <BaseIconButton
+                  accessibilityLabel="Decrease amount"
+                  icon={Minus}
+                  variant="outline"
+                  onPress={handleDecrease}
+                />
+                <FloatingLabelInput
+                  label="Amount"
+                  type="number"
+                  value={String(installmentAmount)}
+                  onValueChange={(t) => setInstallmentAmount(Number(t) || 0)}
+                  containerStyle={styles.flex1}
+                />
+                <BaseIconButton
+                  accessibilityLabel="Increase amount"
+                  icon={Plus}
+                  variant="outline"
+                  onPress={handleIncrease}
+                />
+              </View>
+
+              <View style={styles.computedBox}>
+                <RowItem label="Com CBI" value={computed.comCBI.toFixed(2)} />
+                <RowItem
+                  label="NCom CBI"
+                  value={computed.ncomCBI.toFixed(2)}
+                />
+                <RowItem
+                  label="Commission"
+                  value={computed.commission.toFixed(2)}
+                />
+                <RowItem
+                  label="Transportation Expense"
+                  value={computed.transportationExpense.toFixed(2)}
+                />
+              </View>
+
+              {paymentType === "CK" && (
+                <View style={styles.chequeSection}>
+                  <SectionTitle>Cheque Details</SectionTitle>
                   <View
                     style={[styles.formGrid, isTablet && styles.formGridRow]}
                   >
                     <FloatingLabelInput
-                      label="Sales Invoice Number"
-                      value={siNumber}
-                      onChangeText={setSiNumber}
-                      onBlur={() => {
-                        const raw = siNumber.trim();
-                        if (/^\d+$/.test(raw))
-                          setSiNumber(raw.padStart(8, "0"));
-                      }}
-                      keyboardType="number-pad"
+                      label="Account Number"
+                      value={chequeData.accountNumber}
+                      onValueChange={(t) =>
+                        setChequeData((p) => ({ ...p, accountNumber: t }))
+                      }
+                      disabled={scanningCheque}
                       containerStyle={
                         isTablet ? styles.formGridItem : undefined
                       }
                     />
                     <FloatingLabelInput
-                      label="Sales Invoice Extension"
-                      value={siExtension}
-                      onChangeText={setSiExtension}
+                      label="Account Name"
+                      value={chequeData.accountName}
+                      onValueChange={(t) =>
+                        setChequeData((p) => ({ ...p, accountName: t }))
+                      }
+                      disabled={scanningCheque}
                       containerStyle={
                         isTablet ? styles.formGridItem : undefined
                       }
                     />
                     <FloatingLabelInput
-                      label="Sales Invoice Date"
-                      type="date"
-                      value={siDate}
-                      onChangeText={setSiDate}
-                      pickerValue={new Date(siDate)}
-                      formatValue={toIsoDate}
+                      label="Bank Name"
+                      value={chequeData.bankName}
+                      onValueChange={(t) =>
+                        setChequeData((p) => ({ ...p, bankName: t }))
+                      }
+                      disabled={scanningCheque}
+                      containerStyle={
+                        isTablet ? styles.formGridItem : undefined
+                      }
+                    />
+                    <FloatingLabelInput
+                      label="Bank Branch"
+                      value={chequeData.bankBranch}
+                      onValueChange={(t) =>
+                        setChequeData((p) => ({ ...p, bankBranch: t }))
+                      }
+                      disabled={scanningCheque}
+                      containerStyle={
+                        isTablet ? styles.formGridItem : undefined
+                      }
+                    />
+                    <FloatingLabelInput
+                      label="Cheque Number"
+                      value={chequeData.chequeNumber}
+                      onValueChange={(t) =>
+                        setChequeData((p) => ({ ...p, chequeNumber: t }))
+                      }
+                      disabled={scanningCheque}
                       containerStyle={
                         isTablet ? styles.formGridItem : undefined
                       }
                     />
                   </View>
-
-                  <View style={styles.stepperRow}>
-                    <TouchableOpacity
-                      style={styles.stepperBtn}
-                      onPress={handleDecrease}
-                      activeOpacity={0.75}
-                    >
-                      <Minus size={16} color={theme.color.body} />
-                    </TouchableOpacity>
-                    <FloatingLabelInput
-                      label="Amount"
-                      type="number"
-                      value={String(installmentAmount)}
-                      onChangeText={(t) => setInstallmentAmount(Number(t) || 0)}
-                      containerStyle={{ flex: 1, marginTop: 0 }}
-                    />
-                    <TouchableOpacity
-                      style={styles.stepperBtn}
-                      onPress={handleIncrease}
-                      activeOpacity={0.75}
-                    >
-                      <Plus size={16} color={theme.color.body} />
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.computedBox}>
-                    <RowItem
-                      label="Com CBI"
-                      value={computed.comCBI.toFixed(2)}
-                    />
-                    <RowItem
-                      label="NCom CBI"
-                      value={computed.ncomCBI.toFixed(2)}
-                    />
-                    <RowItem
-                      label="Commission"
-                      value={computed.commission.toFixed(2)}
-                    />
-                    <RowItem
-                      label="Transportation Expense"
-                      value={computed.transportationExpense.toFixed(2)}
-                    />
-                  </View>
-
-                  {paymentType === "CK" && (
-                    <View style={styles.chequeSection}>
-                      <SectionHeader title="Cheque Details" />
-                      <View
-                        style={[
-                          styles.formGrid,
-                          isTablet && styles.formGridRow,
-                        ]}
-                      >
-                        <FloatingLabelInput
-                          label="Account Number"
-                          value={chequeData.accountNumber}
-                          onChangeText={(t) =>
-                            setChequeData((p) => ({ ...p, accountNumber: t }))
-                          }
-                          disabled={scanningCheque}
-                          containerStyle={
-                            isTablet ? styles.formGridItem : undefined
-                          }
-                        />
-                        <FloatingLabelInput
-                          label="Account Name"
-                          value={chequeData.accountName}
-                          onChangeText={(t) =>
-                            setChequeData((p) => ({ ...p, accountName: t }))
-                          }
-                          disabled={scanningCheque}
-                          containerStyle={
-                            isTablet ? styles.formGridItem : undefined
-                          }
-                        />
-                        <FloatingLabelInput
-                          label="Bank Name"
-                          value={chequeData.bankName}
-                          onChangeText={(t) =>
-                            setChequeData((p) => ({ ...p, bankName: t }))
-                          }
-                          disabled={scanningCheque}
-                          containerStyle={
-                            isTablet ? styles.formGridItem : undefined
-                          }
-                        />
-                        <FloatingLabelInput
-                          label="Bank Branch"
-                          value={chequeData.bankBranch}
-                          onChangeText={(t) =>
-                            setChequeData((p) => ({ ...p, bankBranch: t }))
-                          }
-                          disabled={scanningCheque}
-                          containerStyle={
-                            isTablet ? styles.formGridItem : undefined
-                          }
-                        />
-                        <FloatingLabelInput
-                          label="Cheque Number"
-                          value={chequeData.chequeNumber}
-                          onChangeText={(t) =>
-                            setChequeData((p) => ({ ...p, chequeNumber: t }))
-                          }
-                          disabled={scanningCheque}
-                          containerStyle={
-                            isTablet ? styles.formGridItem : undefined
-                          }
-                        />
-                      </View>
-                      <TouchableOpacity
-                        style={styles.scanBtn}
-                        onPress={handleScanCheque}
-                        activeOpacity={0.75}
-                        disabled={scanningCheque}
-                      >
-                        {scanningCheque ? (
-                          <ActivityIndicator
-                            size="small"
-                            color={theme.color.accent}
-                          />
-                        ) : (
-                          <Camera size={15} color={theme.color.accent} />
-                        )}
-                        <Text style={styles.scanBtnText}>
-                          {scanningCheque
-                            ? "Scanning cheque…"
-                            : "Scan Cheque Slip"}
-                        </Text>
-                      </TouchableOpacity>
-                      {!scanningCheque && chequeData.accountNumber ? (
-                        <AppCaption color="accent" style={{ marginTop: 6 }}>
-                          ✔ Cheque data loaded
-                        </AppCaption>
-                      ) : null}
-                    </View>
-                  )}
-
-                  <TouchableOpacity
-                    style={styles.taxRow}
-                    onPress={() => setTaxSheetVisible(true)}
-                    activeOpacity={0.75}
+                  <BaseButton
+                    variant="outline"
+                    leftIcon={Camera}
+                    loading={scanningCheque}
+                    loadingText="Scanning cheque…"
+                    onPress={handleScanCheque}
+                    fullWidth
                   >
-                    <Text style={styles.taxRowLabel}>Tax Details</Text>
-                    <View style={styles.taxRowRight}>
-                      <Text style={styles.taxRowValue}>
-                        {fmt$(computed.totalAmountDue)}
-                      </Text>
-                      <ChevronDown
-                        size={16}
-                        color={BRAND_COLORS.primaryGreen}
-                      />
-                    </View>
-                  </TouchableOpacity>
-
-                  <AppButton
-                    size="lg"
-                    style={{ marginTop: 14 }}
-                    onPress={handleAddPayment}
-                  >
-                    Save Payment
-                  </AppButton>
-                </>
+                    Scan Cheque Slip
+                  </BaseButton>
+                  {!scanningCheque && chequeData.accountNumber ? (
+                    <Caption color="primary">✔ Cheque data loaded</Caption>
+                  ) : null}
+                </View>
               )}
-            </Card>
 
-            {/* Encoded payments */}
-            <Table<PaymentRecord>
-              title="Encoded Payment(s)"
-              subtitle={`${payments.length} record(s)`}
-              headerAction={
-                payments.length > 0 ? (
-                  <AppButton
-                    variant="destructive"
-                    size="sm"
-                    onPress={handleDeleteAll}
-                  >
-                    Delete All
-                  </AppButton>
-                ) : undefined
-              }
-              data={payments}
-              columns={columns}
-              keyExtractor={(r) => r.SI}
-              onRowClick={setDetailRecord}
-              emptyTitle="No payments encoded"
-              emptyMessage="Search a planholder above and save a payment to see it listed here."
+              <Pressable
+                style={({ pressed }) => [
+                  styles.taxRow,
+                  pressed && styles.taxRowPressed,
+                ]}
+                onPress={() => setTaxSheetVisible(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Tax Details"
+              >
+                <BaseText fontSize="sm" fontWeight="bold" color="successFg">
+                  Tax Details
+                </BaseText>
+                <View style={styles.taxRowRight}>
+                  <BaseText fontSize="md" fontWeight="extrabold" color="primary">
+                    {fmt$(computed.totalAmountDue)}
+                  </BaseText>
+                  <ChevronDown size={16} color={theme.colors.primary} />
+                </View>
+              </Pressable>
+
+              <BaseButton size="lg" fullWidth onPress={handleAddPayment}>
+                Save Payment
+              </BaseButton>
+            </View>
+          )}
+        </Card.MainContent>
+      </Card.Root>
+
+      {/* Encoded payments */}
+      <DataTable<PaymentRecord>
+        title="Encoded Payment(s)"
+        description={`${payments.length} record(s)`}
+        headerActions={
+          payments.length > 0 ? (
+            <BaseButton tone="danger" size="sm" onPress={handleDeleteAll}>
+              Delete All
+            </BaseButton>
+          ) : undefined
+        }
+        data={payments}
+        columns={columns}
+        features={tableFeatures}
+        getRowId={(r) => r.SI}
+        onRowClick={setDetailRecord}
+        emptyState={
+          <EmptyStateCard
+            title="No payments encoded"
+            description="Search a planholder above and save a payment to see it listed here."
+          />
+        }
+      />
+    </View>
+  );
+
+  // ── Step 2: Prepare DRS ────────────────────────────────────────────────────
+
+  const drsStepContent = (
+    <View style={styles.stepContent}>
+      <Card.Root title="Digital Remittance">
+        <Card.Subtitle>{drsNo}</Card.Subtitle>
+        <Card.ButtonSection>
+          <PrintIconButton
+            accessibilityLabel="Share DRS"
+            onPress={handleShareDrs}
+          />
+        </Card.ButtonSection>
+        <Card.MainContent>
+          {payments.length === 0 ? (
+            <EmptyStateCard
+              icon={FileText}
+              title="No payments to remit"
+              description="Go back and encode at least one payment first."
             />
+          ) : (
+            <View style={styles.formStack}>
+              <View style={styles.drsMetaRow}>
+                <View style={styles.flex1}>
+                  <Caption>REMITTANCE (HEAD OFFICE)</Caption>
+                  <BaseText
+                    fontSize="sm"
+                    fontWeight="bold"
+                    color="heading"
+                    numberOfLines={1}
+                  >
+                    {preparedByName}
+                  </BaseText>
+                </View>
+                <View style={styles.drsMetaRight}>
+                  <View style={styles.drsPayTypeRow}>
+                    <Caption>Payment Type</Caption>
+                    <OSPBadge type="success">{paymentTypeLabel}</OSPBadge>
+                  </View>
+                  <BaseText fontSize="sm" fontWeight="bold" color="heading">
+                    {drsNo}
+                  </BaseText>
+                </View>
+              </View>
 
-            {payments.length > 0 && (
-              <AppButton
-                size="lg"
-                style={{ marginTop: 10 }}
-                onPress={() => handleStepPress(1)}
-                rightIcon={<ChevronRight size={16} color="#fff" />}
-              >
-                Next: Prepare DRS
-              </AppButton>
-            )}
-          </>
-        )}
-
-        {currentStep === 1 && (
-          <Card
-            icon={FileText}
-            title="Digital Remittance"
-            subtitle={drsNo}
-            headerAction={
-              <TouchableOpacity
-                onPress={handleShareDrs}
-                style={styles.iconBtn}
-                hitSlop={8}
-              >
-                <Printer size={16} color={theme.color.accent} />
-              </TouchableOpacity>
-            }
-          >
-            {payments.length === 0 ? (
-              <EmptyState
-                icon={FileText}
-                title="No payments to remit"
-                message="Go back and encode at least one payment first."
+              <DataTable<PaymentRecord>
+                data={payments}
+                columns={drsColumns}
+                features={tableFeatures}
+                getRowId={(r) => r.SI}
+                onRowClick={setDetailRecord}
+                emptyState={
+                  <EmptyStateCard
+                    title="No payments encoded"
+                    description="Encode a payment first."
+                  />
+                }
               />
-            ) : (
-              <>
-                <View style={styles.drsMetaRow}>
-                  <View style={{ flex: 1 }}>
-                    <AppCaption>REMITTANCE (HEAD OFFICE)</AppCaption>
-                    <Text style={styles.drsMetaValue} numberOfLines={1}>
-                      {preparedByName}
-                    </Text>
-                  </View>
-                  <View style={{ alignItems: "flex-end" }}>
-                    <View style={styles.drsPayTypeRow}>
-                      <AppCaption>Payment Type</AppCaption>
-                      <Badge
-                        label={paymentTypeLabel}
-                        color={BRAND_COLORS.primaryGreen}
-                        backgroundColor={BRAND_COLORS.primaryGreen + "18"}
-                      />
-                    </View>
-                    <Text style={styles.drsMetaValue}>{drsNo}</Text>
-                  </View>
-                </View>
 
-                <Table<PaymentRecord>
-                  data={payments}
-                  columns={drsColumns}
-                  keyExtractor={(r) => r.SI}
-                  onRowClick={setDetailRecord}
-                  emptyTitle="No payments encoded"
-                  emptyMessage="Encode a payment first."
+              <View style={styles.computedBox}>
+                <RowItem label="Total Payments" value={payments.length} />
+                <RowItem label="Total Amount" value={fmt$(drsTotals.amount)} />
+                <RowItem
+                  label="Total Commission"
+                  value={fmt$(drsTotals.commission)}
                 />
+                <RowItem
+                  label="Total Transportation Expense"
+                  value={fmt$(drsTotals.transportation)}
+                />
+              </View>
+            </View>
+          )}
+        </Card.MainContent>
+      </Card.Root>
+    </View>
+  );
 
-                <View style={[styles.computedBox, { marginTop: 12 }]}>
-                  <RowItem label="Total Payments" value={payments.length} />
-                  <RowItem
-                    label="Total Amount"
-                    value={fmt$(drsTotals.amount)}
-                  />
-                  <RowItem
-                    label="Total Commission"
-                    value={fmt$(drsTotals.commission)}
-                  />
-                  <RowItem
-                    label="Total Transportation Expense"
-                    value={fmt$(drsTotals.transportation)}
-                  />
-                </View>
-
-                <AppButton
-                  size="lg"
-                  style={{ marginTop: 4 }}
-                  onPress={handleConfirmGenerateDrs}
-                >
-                  Generate DRS
-                </AppButton>
-                <AppButton
-                  variant="secondary"
-                  size="lg"
-                  style={{ marginTop: 8 }}
-                  onPress={() => setCurrentStep(0)}
-                >
-                  Back to Encode Payment
-                </AppButton>
-              </>
-            )}
-          </Card>
-        )}
-      </Animated.ScrollView>
+  return (
+    <>
+      <View style={styles.content}>
+        <FormStepper
+          stepsData={[
+            {
+              title: "Encode Payment",
+              icon: CreditCard,
+              content: encodeStepContent,
+              validateBeforeNext: validateEncodeStep,
+            },
+            {
+              title: "Prepare DRS",
+              icon: Clipboard,
+              content: drsStepContent,
+            },
+          ]}
+          currentStep={currentStep}
+          setCurrentStep={setCurrentStep}
+          onStepsComplete={handleConfirmGenerateDrs}
+          submitButtonText="Generate DRS"
+          submitDisabled={payments.length === 0}
+        />
+      </View>
 
       {/* Tax details sheet */}
-      <SwipeDismissModal
-        visible={taxSheetVisible}
-        onDismiss={() => setTaxSheetVisible(false)}
+      <ResponsiveSheet
+        open={taxSheetVisible}
+        onClose={() => setTaxSheetVisible(false)}
         title="Tax Details"
-        sheetWidth={420}
+        isTablet={isTablet}
       >
-        <View style={styles.taxSheetBody}>
+        <View style={styles.sheetBody}>
           <RowItem
             label="Vatable Sales"
             value={computed.vatableSales.toFixed(2)}
@@ -1129,17 +1169,17 @@ export default function EncodePaymentScreen() {
             value={computed.totalAmountDue.toFixed(2)}
           />
         </View>
-      </SwipeDismissModal>
+      </ResponsiveSheet>
 
       {/* Row detail sheet */}
-      <SwipeDismissModal
-        visible={detailRecord !== null}
-        onDismiss={() => setDetailRecord(null)}
+      <ResponsiveSheet
+        open={detailRecord !== null}
+        onClose={() => setDetailRecord(null)}
         title="Payment Detail"
-        sheetWidth={420}
+        isTablet={isTablet}
       >
         {detailRecord && (
-          <View style={styles.taxSheetBody}>
+          <View style={styles.sheetBody}>
             <RowItem label="Name" value={detailRecord.Name} />
             <RowItem label="SI Date" value={fmtDateStr(detailRecord.SIDate)} />
             <RowItem
@@ -1159,27 +1199,27 @@ export default function EncodePaymentScreen() {
             />
           </View>
         )}
-      </SwipeDismissModal>
+      </ResponsiveSheet>
 
       {/* Status alert */}
-      <AlertModal
-        visible={alertState.visible}
-        onDismiss={dismissAlert}
+      <MessageDialog
+        open={alertState.open}
+        onOpenChange={(o) => !o && dismissAlert()}
         variant={alertState.variant}
         title={alertState.title}
         message={alertState.message}
       />
 
       {/* Generate DRS confirmation */}
-      <ConfirmModal
-        visible={confirmDrsVisible}
-        onCancel={() => setConfirmDrsVisible(false)}
+      <MessageDialog
+        open={confirmDrsVisible}
+        onOpenChange={(o) => !o && setConfirmDrsVisible(false)}
         onConfirm={handleGenerateDrs}
-        variant="info"
+        variant="confirmation"
         title="Generate DRS"
         message="Would you like to create a Digital Remittance Slip for these payments?"
-        cancelLabel="No"
-        confirmLabel="Yes"
+        cancelText="No"
+        confirmText="Yes"
       />
     </>
   );
@@ -1187,119 +1227,65 @@ export default function EncodePaymentScreen() {
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  content: { padding: 16, gap: 10 },
+function makeStyles(t: StPeterTheme) {
+  const c = t.colors;
+  return StyleSheet.create({
+    content: { gap: 10 },
+    stepContent: { gap: 10 },
+    flex1: { flex: 1 },
 
-  // Selected planholder summary
-  infoRowPair: { flexDirection: "row", gap: 12 },
+    // Selected planholder summary
+    infoStack: { gap: 10 },
+    infoRowPair: { flexDirection: "row", gap: 12 },
 
-  // Form fields
-  formGrid: { flexDirection: "column", gap: 12 },
-  formGridRow: { flexDirection: "row", flexWrap: "wrap" },
-  formGridItem: { width: "48%" },
+    // Form fields
+    formStack: { gap: 12 },
+    fieldGroup: { gap: 6 },
+    formGrid: { flexDirection: "column", gap: 12 },
+    formGridRow: { flexDirection: "row", flexWrap: "wrap" },
+    formGridItem: { width: "48%" },
 
-  // Amount stepper
-  stepperRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 9,
-    marginBottom: 12,
-  },
-  stepperBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: theme.radius.sm,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.color.card,
-  },
+    // Amount stepper
+    stepperRow: { flexDirection: "row", alignItems: "center", gap: 8 },
 
-  // Computed values box
-  computedBox: {
-    backgroundColor: BRAND_COLORS.subtleBg,
-    borderRadius: theme.radius.sm,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    paddingHorizontal: 10,
-    marginTop: 2,
-    marginBottom: 10,
-  },
+    // Computed values box
+    computedBox: {
+      backgroundColor: c.canvas,
+      borderRadius: t.radii.control,
+      borderWidth: 1,
+      borderColor: c.hairline,
+      paddingHorizontal: 10,
+    },
 
-  // Prepare DRS
-  iconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: theme.radius.full,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.color.card,
-  },
-  drsMetaRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 12,
-    marginBottom: 12,
-  },
-  drsMetaValue: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: theme.color.ink,
-    marginTop: 2,
-  },
-  drsPayTypeRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+    // Prepare DRS
+    drsMetaRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: 12,
+    },
+    drsMetaRight: { alignItems: "flex-end", gap: 2 },
+    drsPayTypeRow: { flexDirection: "row", alignItems: "center", gap: 6 },
 
-  // Cheque details
-  chequeSection: { marginTop: 4, marginBottom: 4 },
-  scanBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    borderRadius: theme.radius.sm,
-    paddingVertical: 11,
-    backgroundColor: theme.color.card,
-    marginTop: 2,
-  },
-  scanBtnText: { fontSize: 13, fontWeight: "600", color: theme.color.accent },
+    // Cheque details
+    chequeSection: { gap: 12 },
 
-  // Tax details row
-  taxRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: theme.color.successBg,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    borderColor: BRAND_COLORS.primaryGreen + "33",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginTop: 2,
-  },
-  taxRowLabel: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: BRAND_COLORS.darkGreen,
-  },
-  taxRowRight: { flexDirection: "row", alignItems: "center", gap: 6 },
-  taxRowValue: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: BRAND_COLORS.primaryGreen,
-  },
+    // Tax details row
+    taxRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      backgroundColor: c.successTint,
+      borderRadius: t.radii.card,
+      borderWidth: 1,
+      borderColor: alpha(c.primary, 0.2),
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    taxRowPressed: { opacity: 0.75 },
+    taxRowRight: { flexDirection: "row", alignItems: "center", gap: 6 },
 
-  // Table cells
-  cellStrong: { fontSize: 12, fontWeight: "700", color: theme.color.ink },
-  cellBody: { fontSize: 12, color: theme.color.body },
-  cellMuted: { fontSize: 11, color: theme.color.muted },
-
-  // Tax / detail sheet body
-  taxSheetBody: { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 8 },
-});
+    // Tax / detail sheet body
+    sheetBody: { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 8 },
+  });
+}

@@ -1,25 +1,31 @@
 import { CreditCard, FileText, Phone } from "lucide-react-native";
-import React, { useState } from "react";
-import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import Animated from "react-native-reanimated";
+import {
+  alpha,
+  BaseButton,
+  BaseText,
+  BottomSheet,
+  Card,
+  DataTable,
+  DrawerPanel,
+  MetricCard,
+  OSPBadge,
+  RowItem,
+  SectionTitle,
+  Small,
+  useTheme,
+  type DataTableProps,
+  type IconComponent,
+  type OSPBadgeType,
+} from "osp-ui-kit-native";
+import React, { useState, type ReactNode } from "react";
+import { useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { APP_HEADER_HEIGHT } from "@/components/navigation/AppHeader";
-import { BOTTOM_NAV_HEIGHT } from "@/components/navigation/BottomNavBar";
-import type { TableColDef } from "@/components/ui";
-import {
-  AppButton,
-  Badge,
-  Card,
-  RowItem,
-  SwipeDismissModal,
-  Table,
-  theme,
-} from "@/components/ui";
-import { BRAND_COLORS } from "@/constants/colors";
-import { useScrollNav } from "@/hooks/use-scroll-nav";
-
 // ── Types ────────────────────────────────────────────────────────────────────
+
+// `@tanstack/react-table`'s ColumnDef, taken from the kit's DataTable props
+// (the package is a kit dependency, not a direct app dependency).
+type ColumnDef<T> = DataTableProps<T>["columns"][number];
 
 type MCPR = {
   LPANo: string;
@@ -300,6 +306,7 @@ const mcprData: MCPR[] = [
   },
 ];
 
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmt$(n: number) {
@@ -321,289 +328,360 @@ function fmtDate(d: Date) {
 function fmtDec(n: number) {
   return n.toFixed(2);
 }
-function agingStyle(aging: number) {
-  if (aging === 0) return { color: "#059669", bg: "#ecfdf5", label: "0" };
-  if (aging <= 30) return { color: "#d97706", bg: "#fffbeb", label: "30" };
-  if (aging <= 60) return { color: "#ea580c", bg: "#fff7ed", label: "60" };
-  return { color: "#dc2626", bg: "#fef2f2", label: "90" };
+function agingStyle(aging: number): { type: OSPBadgeType; label: string } {
+  if (aging === 0) return { type: "success", label: "0" };
+  if (aging <= 30) return { type: "warning", label: "30" };
+  if (aging <= 60) return { type: "warning", label: "60" };
+  return { type: "danger", label: "90" };
 }
 
 // ── Column definitions ───────────────────────────────────────────────────────
 
-const COLUMNS: TableColDef<MCPR>[] = [
+const COLUMNS: ColumnDef<MCPR>[] = [
   {
-    key: "LPANo",
-    label: "LPA No",
-    width: 88,
-    sortValue: (r) => r.LPANo,
-    renderCell: (r) => (
-      <Text
-        style={{ fontSize: 12, color: theme.color.accent, fontWeight: "700" }}
+    accessorKey: "LPANo",
+    header: "LPA No",
+    meta: { width: 88, isStickyLeft: true },
+    cell: ({ row }) => (
+      <BaseText
+        fontSize="xs"
+        fontWeight="bold"
+        color="primary"
         numberOfLines={1}
       >
-        {r.LPANo}
-      </Text>
+        {row.original.LPANo}
+      </BaseText>
     ),
   },
   {
-    key: "PlanholderName",
-    label: "Planholder",
-    width: 148,
-    sortValue: (r) => r.PlanholderName,
-    renderCell: (r) => (
-      <Text style={{ fontSize: 12, color: theme.color.ink }} numberOfLines={2}>
-        {r.PlanholderName}
-      </Text>
+    accessorKey: "PlanholderName",
+    header: "Planholder",
+    meta: { width: 148 },
+    cell: ({ row }) => (
+      <BaseText fontSize="xs" color="heading" numberOfLines={2}>
+        {row.original.PlanholderName}
+      </BaseText>
     ),
   },
   {
-    key: "PlanCode",
-    label: "Plan Code",
-    width: 88,
-    renderCell: (r) => (
-      <Text style={{ fontSize: 12, color: theme.color.body }} numberOfLines={1}>
-        {r.PlanCode}
-      </Text>
+    accessorKey: "PlanCode",
+    header: "Plan Code",
+    enableSorting: false,
+    meta: { width: 88 },
+    cell: ({ row }) => (
+      <BaseText fontSize="xs" numberOfLines={1}>
+        {row.original.PlanCode}
+      </BaseText>
     ),
   },
   {
-    key: "InstAmt",
-    label: "Inst. Amt",
-    width: 108,
-    sortValue: (r) => r.InstAmt,
-    align: "right",
-    renderCell: (r) => (
-      <Text
-        style={{ fontSize: 12, color: theme.color.ink, textAlign: "right" }}
+    accessorKey: "InstAmt",
+    header: "Inst. Amt",
+    meta: { width: 108, numeric: true },
+    cell: ({ row }) => (
+      <BaseText
+        fontSize="xs"
+        color="heading"
+        textAlign="right"
         numberOfLines={1}
       >
-        {fmt$(r.InstAmt)}
-      </Text>
+        {fmt$(row.original.InstAmt)}
+      </BaseText>
     ),
   },
   {
-    key: "DueDate",
-    label: "Due Date",
-    width: 100,
-    sortValue: (r) => r.DueDate,
-    renderCell: (r) => (
-      <Text style={{ fontSize: 12, color: theme.color.body }} numberOfLines={1}>
-        {fmtDate(r.DueDate)}
-      </Text>
+    accessorKey: "DueDate",
+    header: "Due Date",
+    meta: { width: 100 },
+    cell: ({ row }) => (
+      <BaseText fontSize="xs" numberOfLines={1}>
+        {fmtDate(row.original.DueDate)}
+      </BaseText>
     ),
   },
   {
-    key: "InstallmentNo",
-    label: "No.",
-    width: 48,
-    sortValue: (r) => r.InstallmentNo,
-    align: "center",
-    renderCell: (r) => (
-      <Text
-        style={{ fontSize: 12, color: theme.color.body, textAlign: "center" }}
-      >
-        {r.InstallmentNo}
-      </Text>
+    accessorKey: "InstallmentNo",
+    header: "No.",
+    meta: { width: 48 },
+    cell: ({ row }) => (
+      <BaseText fontSize="xs" textAlign="center">
+        {row.original.InstallmentNo}
+      </BaseText>
     ),
   },
   {
-    key: "Aging",
-    label: "Aging",
-    width: 76,
-    sortValue: (r) => r.Aging,
-    align: "center",
-    renderCell: (r) => {
-      const { color, bg, label } = agingStyle(r.Aging);
+    accessorKey: "Aging",
+    header: "Aging",
+    meta: { width: 76 },
+    cell: ({ row }) => {
+      const { type, label } = agingStyle(row.original.Aging);
       return (
         <View style={{ alignItems: "center" }}>
-          <Badge label={label} color={color} backgroundColor={bg} />
+          <OSPBadge type={type}>{label}</OSPBadge>
         </View>
       );
     },
   },
   {
-    key: "CommQ30",
-    label: "Comm Q30",
-    width: 92,
-    align: "right",
-    renderCell: (r) => (
-      <Text
-        style={{ fontSize: 12, color: theme.color.body, textAlign: "right" }}
-        numberOfLines={1}
-      >
-        {fmtDec(r.CommQ30)}
-      </Text>
+    accessorKey: "CommQ30",
+    header: "Comm Q30",
+    enableSorting: false,
+    meta: { width: 92, numeric: true },
+    cell: ({ row }) => (
+      <BaseText fontSize="xs" textAlign="right" numberOfLines={1}>
+        {fmtDec(row.original.CommQ30)}
+      </BaseText>
     ),
   },
   {
-    key: "QNCom",
-    label: "Q.NCom",
-    width: 82,
-    align: "right",
-    renderCell: (r) => (
-      <Text
-        style={{ fontSize: 12, color: theme.color.body, textAlign: "right" }}
-        numberOfLines={1}
-      >
-        {fmtDec(r.QNCom)}
-      </Text>
+    accessorKey: "QNCom",
+    header: "Q.NCom",
+    enableSorting: false,
+    meta: { width: 82, numeric: true },
+    cell: ({ row }) => (
+      <BaseText fontSize="xs" textAlign="right" numberOfLines={1}>
+        {fmtDec(row.original.QNCom)}
+      </BaseText>
     ),
   },
   {
-    key: "SIAmount",
-    label: "SI Amount",
-    width: 112,
-    sortValue: (r) => r.SIAmount,
-    align: "right",
-    renderCell: (r) => (
-      <Text
-        style={{ fontSize: 12, color: theme.color.ink, textAlign: "right" }}
+    accessorKey: "SIAmount",
+    header: "SI Amount",
+    meta: { width: 112, numeric: true },
+    cell: ({ row }) => (
+      <BaseText
+        fontSize="xs"
+        color="heading"
+        textAlign="right"
         numberOfLines={1}
       >
-        {fmt$(r.SIAmount)}
-      </Text>
+        {fmt$(row.original.SIAmount)}
+      </BaseText>
     ),
   },
   {
-    key: "MobileNo",
-    label: "Mobile",
-    width: 116,
-    renderCell: (r) => (
-      <Text style={{ fontSize: 12, color: theme.color.body }} numberOfLines={1}>
-        {r.MobileNo}
-      </Text>
+    accessorKey: "MobileNo",
+    header: "Mobile",
+    enableSorting: false,
+    meta: { width: 116 },
+    cell: ({ row }) => (
+      <BaseText fontSize="xs" numberOfLines={1}>
+        {row.original.MobileNo}
+      </BaseText>
     ),
   },
 ];
 
-// ── Search predicate ─────────────────────────────────────────────────────────
+// ── Detail sheet (bottom sheet on phone, side panel on tablet+) ─────────────
 
-function mcprSearchFilter(query: string, row: MCPR): boolean {
-  const q = query.toLowerCase();
+function DetailSheet({
+  open,
+  onClose,
+  title,
+  isTablet,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  isTablet: boolean;
+  children: ReactNode;
+}) {
+  const insets = useSafeAreaInsets();
+  if (isTablet) {
+    return (
+      <DrawerPanel
+        open={open}
+        onOpenChange={(o) => !o && onClose()}
+        title={title}
+        placement="end"
+        size="md"
+        insets={{ top: insets.top, bottom: insets.bottom }}
+      >
+        {children}
+      </DrawerPanel>
+    );
+  }
   return (
-    row.LPANo.toLowerCase().includes(q) ||
-    row.PlanholderName.toLowerCase().includes(q) ||
-    row.PlanCode.toLowerCase().includes(q) ||
-    row.MobileNo.includes(q)
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title={title}
+      bottomInset={insets.bottom}
+    >
+      {children}
+    </BottomSheet>
+  );
+}
+
+// ── Section card (Card with an icon + title header row) ─────────────────────
+
+function SectionCard({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: IconComponent;
+  title: string;
+  children: ReactNode;
+}) {
+  const theme = useTheme();
+  return (
+    <Card.Root style={{ padding: 16 }}>
+      <Card.MainContent>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 6,
+          }}
+        >
+          <View
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: theme.radii.pill,
+              backgroundColor: alpha(theme.colors.primary, 0.12),
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Icon size={14} color={theme.colors.primary} />
+          </View>
+          <SectionTitle>{title}</SectionTitle>
+        </View>
+        {children}
+      </Card.MainContent>
+    </Card.Root>
   );
 }
 
 // ── Screen ──────────────────────────────────────────────────────────────────
 
 export default function MCPRScreen() {
-  const scrollHandler = useScrollNav();
-  const insets = useSafeAreaInsets();
+  const theme = useTheme();
   const { width } = useWindowDimensions();
   const isTablet = width >= 1024;
   const [selectedRecord, setSelectedRecord] = useState<MCPR | null>(null);
 
   return (
     <>
-      <Animated.ScrollView
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        style={{ backgroundColor: theme.color.bg }}
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: APP_HEADER_HEIGHT + insets.top + 16,
-            paddingBottom: BOTTOM_NAV_HEIGHT + insets.bottom + 16,
-            paddingHorizontal: width >= 768 ? 24 : 16,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={{ gap: 12, paddingVertical: 8 }}>
         {/* Summary cards */}
-        <View style={isTablet ? styles.cardsTablet : styles.cardsPhone}>
-          <Card
-            icon={FileText}
-            title="No. of Accounts"
-            subtitle="Total Active Accounts"
-            style={{ flex: 1, marginBottom: 0 }}
-            bodyStyle={{ paddingVertical: 12 }}
-          >
-            <View style={styles.accountCenter}>
-              <Text
-                style={[
-                  styles.accountCount,
-                  { color: BRAND_COLORS.primaryGreen },
-                ]}
-              >
-                {mcprData.length}
-              </Text>
-            </View>
-          </Card>
-        </View>
+        <MetricCard
+          icon={FileText}
+          label="No. of Accounts"
+          subtitle="| Total Active Accounts"
+          value={String(mcprData.length)}
+          accent="primary"
+        />
 
-        <Table<MCPR>
+        <DataTable<MCPR>
           title="Account List"
           data={mcprData}
           columns={COLUMNS}
-          keyExtractor={(r) => r.LPANo}
-          searchEnabled
-          searchPlaceholder="Search by name, LPA No, plan code or mobile…"
-          searchFilter={mcprSearchFilter}
-          columnSelectionEnabled
-          defaultSortKey="LPANo"
+          getRowId={(r) => r.LPANo}
+          features={{
+            search: true,
+            sorting: true,
+            pagination: true,
+            columnToggle: true,
+            filtering: false,
+            selection: false,
+            detailSidebar: false,
+          }}
+          labels={{
+            searchPlaceholder: "Search by name, LPA No, plan code or mobile…",
+          }}
           defaultPageSize={10}
-          stickyFirstColumn
           onRowClick={setSelectedRecord}
+          mobileConfig={{
+            viewMode: "card",
+            primaryField: "PlanholderName",
+            titleTransform: "none",
+            secondaryField: "LPANo",
+            badgeField: "Aging",
+            badgeColorMap: { "0": "green", "30": "yellow", "60": "orange", "90": "red" },
+            visibleFields: ["PlanCode", "InstAmt", "DueDate", "SIAmount"],
+            labelMap: {
+              LPANo: "LPA No",
+              PlanCode: "Plan Code",
+              InstAmt: "Inst. Amt",
+              DueDate: "Due Date",
+              SIAmount: "SI Amount",
+            },
+            valueFormatter: {
+              Aging: (v) => agingStyle(Number(v)).label,
+              InstAmt: (v) => fmt$(Number(v)),
+              SIAmount: (v) => fmt$(Number(v)),
+              DueDate: (v) => fmtDate(v as Date),
+            },
+          }}
         />
 
         {/* View Incentives */}
-        <AppButton
+        <BaseButton
           size="lg"
-          style={{
-            backgroundColor: BRAND_COLORS.primaryGreen,
-            alignSelf: isTablet ? "flex-end" : "stretch",
-            marginTop: 4,
-          }}
+          fullWidth={!isTablet}
+          style={{ alignSelf: isTablet ? "flex-end" : "stretch", marginTop: 4 }}
         >
           View Incentives
-        </AppButton>
-      </Animated.ScrollView>
+        </BaseButton>
+      </View>
 
       {/* MCPR record detail — bottom sheet on phone, right sidebar on tablet+ */}
-      <SwipeDismissModal
-        visible={selectedRecord !== null}
-        onDismiss={() => setSelectedRecord(null)}
+      <DetailSheet
+        open={selectedRecord !== null}
+        onClose={() => setSelectedRecord(null)}
         title="Account List"
-        sheetWidth={480}
+        isTablet={isTablet}
       >
         {selectedRecord &&
           (() => {
-            const {
-              color: agColor,
-              bg: agBg,
-              label: agLabel,
-            } = agingStyle(selectedRecord.Aging);
+            const { type: agType, label: agLabel } = agingStyle(
+              selectedRecord.Aging,
+            );
             return (
-              <View style={styles.bsScroll}>
+              <>
                 {/* ── Light Info tile ────────────────────────────── */}
-                <View style={styles.bsTile}>
-                  <View style={styles.bsTileTop}>
-                    <Text style={styles.bsTileLpa}>{selectedRecord.LPANo}</Text>
-                    <Badge
-                      label={
-                        selectedRecord.Aging === 0
-                          ? agLabel
-                          : `${selectedRecord.Aging} Days`
-                      }
-                      color={agColor}
-                      backgroundColor={agBg}
-                    />
+                <View
+                  style={{
+                    backgroundColor: theme.colors.infoTint,
+                    borderRadius: theme.radii.card,
+                    borderWidth: 1,
+                    borderColor: alpha(theme.colors.info, 0.2),
+                    padding: 16,
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <BaseText
+                      fontSize="lg"
+                      fontWeight="extrabold"
+                      color="heading"
+                      style={{ letterSpacing: 0.3, textTransform: "uppercase" }}
+                    >
+                      {selectedRecord.LPANo}
+                    </BaseText>
+                    <OSPBadge type={agType}>
+                      {selectedRecord.Aging === 0
+                        ? agLabel
+                        : `${selectedRecord.Aging} Days`}
+                    </OSPBadge>
                   </View>
-                  <Text style={styles.bsTileName}>
+                  <Small fontSize="sm" color="mutedStrong" style={{ marginTop: 4 }}>
                     {selectedRecord.PlanholderName}
-                  </Text>
+                  </Small>
                 </View>
 
                 {/* ── Card 1: Plan Information ───────────────────── */}
-                <Card
-                  title="Plan Information"
-                  style={styles.bsCard}
-                  icon={FileText}
-                >
+                <SectionCard title="Plan Information" icon={FileText}>
                   <RowItem label="Plan Code" value={selectedRecord.PlanCode} />
                   <RowItem
                     label="Installment No."
@@ -613,14 +691,10 @@ export default function MCPRScreen() {
                     label="Due Date"
                     value={fmtDate(selectedRecord.DueDate)}
                   />
-                </Card>
+                </SectionCard>
 
                 {/* ── Card 2: Financial Details ──────────────────── */}
-                <Card
-                  title="Financial Details"
-                  style={styles.bsCard}
-                  icon={CreditCard}
-                >
+                <SectionCard title="Financial Details" icon={CreditCard}>
                   <RowItem
                     label="Installment Amount"
                     value={fmt$(selectedRecord.InstAmt)}
@@ -637,66 +711,16 @@ export default function MCPRScreen() {
                     label="Q.NCom"
                     value={fmtDec(selectedRecord.QNCom)}
                   />
-                </Card>
+                </SectionCard>
 
                 {/* ── Card 3: Contact ────────────────────────────── */}
-                <Card title="Contact" style={styles.bsCard} icon={Phone}>
+                <SectionCard title="Contact" icon={Phone}>
                   <RowItem label="Mobile No." value={selectedRecord.MobileNo} />
-                </Card>
-              </View>
+                </SectionCard>
+              </>
             );
           })()}
-      </SwipeDismissModal>
+      </DetailSheet>
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  content: { padding: 16, gap: 12 },
-
-  // Summary cards
-  cardsPhone: { gap: 10 },
-  cardsTablet: { flexDirection: "row", gap: 12, alignItems: "stretch" },
-  accountCenter: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-  },
-  accountCount: { fontSize: 38, fontWeight: "900", lineHeight: 52 },
-
-  // Record detail sheet content
-  bsScroll: {
-    paddingHorizontal: 16,
-    paddingTop: 4,
-  },
-  // Light Info tile
-  bsTile: {
-    backgroundColor: BRAND_COLORS.infoBg,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: BRAND_COLORS.info + "33",
-    padding: 16,
-    marginBottom: 12,
-  },
-  bsTileTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    // marginBottom: 2,
-  },
-  bsTileLpa: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: BRAND_COLORS.ink,
-    letterSpacing: 0.3,
-    textTransform: "uppercase",
-  },
-  bsTileName: {
-    fontSize: 14,
-    fontWeight: "400",
-    color: BRAND_COLORS.grey,
-
-    lineHeight: 26,
-  },
-  bsCard: { marginBottom: 12 },
-});

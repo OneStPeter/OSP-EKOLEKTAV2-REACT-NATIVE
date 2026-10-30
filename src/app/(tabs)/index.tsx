@@ -1,26 +1,36 @@
 import {
-  ArrowDown,
-  ArrowUp,
-  BarChart2,
   ChevronLeft,
   ChevronRight,
-  TrendingUp,
-  Trophy,
   UserCheck,
   UserMinus,
   UserPlus,
-  Users,
   UserX,
-  Zap,
 } from "lucide-react-native";
+import {
+  alpha,
+  BaseIconButton,
+  BaseText,
+  BrandedAvatar,
+  Caption,
+  Card,
+  MetricCard,
+  RowItem,
+  SectionTitle,
+  SegmentedControl,
+  Small,
+  useAppUser,
+  useTheme,
+  useThemedStyles,
+  type MetricAccent,
+  type StPeterTheme,
+} from "osp-ui-kit-native";
 import React, { useEffect, useRef, useState } from "react";
 import {
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TouchableOpacity,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -33,24 +43,9 @@ import Animated, {
   withDelay,
   withTiming,
 } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle } from "react-native-svg";
 
-import { APP_HEADER_HEIGHT } from "@/components/navigation/AppHeader";
-import { BOTTOM_NAV_HEIGHT } from "@/components/navigation/BottomNavBar";
-import {
-  AppButton,
-  AppCaption,
-  AppLabel,
-  AppText,
-  AppTitle,
-  Card,
-  IconBox,
-  RowItem,
-  SectionHeader,
-  theme,
-} from "@/components/ui";
-import { useScrollNav } from "@/hooks/use-scroll-nav";
+import { useUserProfile } from "@/context/user-profile-context";
 
 // ── Static data ────────────────────────────────────────────────────────────
 const PLANHOLDERS = {
@@ -62,6 +57,10 @@ const PLANHOLDERS = {
   prevLapsedAccounts: 15,
   terminatedAccounts: 2,
   prevTerminatedAccounts: 5,
+};
+
+const PROFIT = {
+  current: 1284500,
 };
 
 const QC = {
@@ -140,7 +139,7 @@ type TileData = {
   prevVal: string;
   pct: number;
   order: "asc" | "desc";
-  color: string;
+  accent: MetricAccent;
 };
 
 const TILES: TileData[] = [
@@ -154,7 +153,7 @@ const TILES: TileData[] = [
         PLANHOLDERS.prevNewSales) *
       100,
     order: "asc",
-    color: theme.color.accent,
+    accent: "success",
   },
   {
     Icon: UserCheck,
@@ -166,7 +165,7 @@ const TILES: TileData[] = [
         PLANHOLDERS.prevActiveAccounts) *
       100,
     order: "asc",
-    color: theme.color.info,
+    accent: "info",
   },
   {
     Icon: UserX,
@@ -178,7 +177,7 @@ const TILES: TileData[] = [
         PLANHOLDERS.prevLapsedAccounts) *
       100,
     order: "desc",
-    color: theme.color.warning,
+    accent: "warning",
   },
   {
     Icon: UserMinus,
@@ -190,7 +189,7 @@ const TILES: TileData[] = [
         PLANHOLDERS.prevTerminatedAccounts) *
       100,
     order: "desc",
-    color: theme.color.error,
+    accent: "danger",
   },
 ];
 
@@ -198,7 +197,7 @@ const TILES: TileData[] = [
 
 function fmtPeso(n: number) {
   return (
-    "₱ " +
+    /*₱*/ "Php " +
     n.toLocaleString("en-US", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -282,60 +281,118 @@ function DonutChart({
           animatedProps={animatedProps}
         />
       </Svg>
-      <Text style={{ fontSize, fontWeight: "800", color }} numberOfLines={1}>
+      <BaseText
+        fontWeight="extrabold"
+        color={color}
+        numberOfLines={1}
+        style={{ fontSize, lineHeight: Math.round(fontSize * 1.3) }}
+      >
         {Math.round(percentage)}%
-      </Text>
+      </BaseText>
     </View>
   );
 }
 
 // ── KPI Tile ───────────────────────────────────────────────────────────────
 function Tile({ tile }: { tile: TileData }) {
-  const { Icon, title, value, prevVal, pct, order, color } = tile;
+  const { Icon, title, value, prevVal, pct, order, accent } = tile;
+  // Green when the move is good for this metric — a drop in lapsed accounts is.
   const isPositive = order === "asc" ? pct >= 0 : pct <= 0;
-  const trendColor = isPositive ? theme.color.accent : theme.color.error;
-  const trendBg = isPositive ? theme.color.successBg : theme.color.errorBg;
-  const absPct = Math.abs(pct).toFixed(1);
+  const change = pct > 0 ? "increase" : pct < 0 ? "decrease" : "no change";
+
+  return (
+    <MetricCard
+      icon={Icon}
+      label={title}
+      subtitle="| This Month"
+      value={value}
+      accent={accent}
+      delta={`${Math.abs(pct).toFixed(1)}%`}
+      deltaDirection={isPositive ? "up" : "down"}
+      deltaLabel={`${change} vs ${prevVal}`}
+    />
+  );
+}
+
+// ── Section header ─────────────────────────────────────────────────────────
+function SectionHeader({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <View style={{ marginTop: 8 }}>
+      <SectionTitle>{title}</SectionTitle>
+      {subtitle ? (
+        <Small color="mutedStrong" style={{ marginTop: 1 }}>
+          {subtitle}
+        </Small>
+      ) : null}
+    </View>
+  );
+}
+
+// ── Profit card ────────────────────────────────────────────────────────────
+// One compact row: the signed-in user on the left, this month's profit on the right.
+function ProfitCard() {
+  const theme = useTheme();
+  const s = useThemedStyles(makeStyles);
+  const user = useAppUser();
+  const { imageUri } = useUserProfile();
 
   return (
     <View
-      style={[s.tile, { borderColor: color, backgroundColor: color + "15" }]}
+      style={[
+        s.profitCard,
+        {
+          borderRadius: theme.radii.card,
+          backgroundColor: theme.colors.surface,
+          boxShadow: theme.shadows.card,
+        },
+      ]}
     >
-      <View style={s.tileHeaderRow}>
-        <IconBox icon={Icon} color={color} size={40} iconSize={18} borderRadius={11} />
-        <AppText fontWeight="600" style={{ fontSize: 16 }}>{title}</AppText>
+      <BrandedAvatar
+        name={user?.displayName}
+        imageUrl={imageUri ?? user?.avatarUrl}
+        size={40}
+      />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <BaseText
+          fontSize="sm"
+          fontWeight="bold"
+          color="heading"
+          numberOfLines={1}
+        >
+          {user?.displayName ?? "User"}
+        </BaseText>
+        {user?.position ? (
+          <BaseText fontSize="xs" color="mutedStrong" numberOfLines={1}>
+            {user.position}
+          </BaseText>
+        ) : null}
       </View>
-
-      <AppTitle style={{ fontSize: 32, lineHeight: 40, letterSpacing: -0.8 }}>
-        {value}
-      </AppTitle>
-
-      <View style={s.tileMomRow}>
-        <View>
-          <AppLabel>Prior Month</AppLabel>
-          <AppText fontWeight="600" style={{ marginTop: 2 }}>{prevVal}</AppText>
-        </View>
-        <View style={s.tileTrendCol}>
-          <View style={[s.tilePill, { backgroundColor: trendBg }]}>
-            {pct > 0 ? (
-              <ArrowUp size={11} color={trendColor} strokeWidth={2.5} />
-            ) : pct < 0 ? (
-              <ArrowDown size={11} color={trendColor} strokeWidth={2.5} />
-            ) : null}
-            <Text style={[s.tilePillText, { color: trendColor }]}>
-              {absPct}%
-            </Text>
-          </View>
-          <Text style={[s.tileChangeLabel, { color: trendColor }]}>
-            {pct > 0 ? "Increase" : pct < 0 ? "Decrease" : "No change"}
-          </Text>
-        </View>
+      <View style={{ alignItems: "flex-end", flexShrink: 0 }}>
+        <BaseText fontSize="xs" color="mutedStrong" numberOfLines={1}>
+          Profit · This Month
+        </BaseText>
+        <BaseText
+          fontSize="lg"
+          fontWeight="bold"
+          color="primary"
+          numberOfLines={1}
+          style={{ fontVariant: ["tabular-nums"] }}
+        >
+          {fmtPeso(PROFIT.current)}
+        </BaseText>
       </View>
     </View>
   );
 }
 
 // ── Leaderboard item ───────────────────────────────────────────────────────
+// Gold, silver, bronze — medal colours, deliberately outside the palette.
 const RANK_COLORS = ["#F59E0B", "#94A3B8", "#F97316"];
 
 function LeaderItem({
@@ -349,6 +406,9 @@ function LeaderItem({
   max: number;
   rank: number;
 }) {
+  const theme = useTheme();
+  const c = theme.colors;
+  const s = useThemedStyles(makeStyles);
   const isTop3 = rank <= 3;
   const rankColor = isTop3 ? RANK_COLORS[rank - 1] : undefined;
   const barW = `${((ns / max) * 100).toFixed(1)}%` as any;
@@ -361,41 +421,53 @@ function LeaderItem({
   return (
     <View style={s.leaderRow}>
       <View
-        style={[
-          s.rankBadge,
-          { backgroundColor: isTop3 ? rankColor : "#F3F4F6" },
-        ]}
+        style={[s.rankBadge, { backgroundColor: isTop3 ? rankColor : c.canvas }]}
       >
-        <Text style={[s.rankText, { color: isTop3 ? "#fff" : "#9CA3AF" }]}>
+        <BaseText
+          fontWeight="bold"
+          color={isTop3 ? "#FFFFFF" : "muted"}
+          style={s.rankText}
+        >
           {rank}
-        </Text>
+        </BaseText>
       </View>
 
       <View
-        style={[
-          s.leaderAvatar,
-          { backgroundColor: theme.color.accent + "22" },
-        ]}
+        style={[s.leaderAvatar, { backgroundColor: alpha(c.primary, 0.13) }]}
       >
-        <Text style={[s.leaderAvatarText, { color: theme.color.accent }]}>
+        <BaseText fontWeight="bold" color="primary" style={s.leaderAvatarText}>
           {initials}
-        </Text>
+        </BaseText>
       </View>
 
       <View style={{ flex: 1, minWidth: 0 }}>
-        <AppText fontWeight="600" numberOfLines={1}>{name}</AppText>
-        <AppCaption style={{ marginTop: 1 }}>{ns.toLocaleString()} sales</AppCaption>
+        <BaseText
+          fontSize="sm"
+          fontWeight="semibold"
+          color="heading"
+          numberOfLines={1}
+        >
+          {name}
+        </BaseText>
+        <Caption style={{ marginTop: 1 }}>{ns.toLocaleString()} sales</Caption>
       </View>
 
       <View style={{ width: 64 }}>
-        <Text style={s.leaderPct}>{((ns / max) * 100).toFixed(0)}%</Text>
+        <BaseText
+          fontWeight="semibold"
+          color="mutedStrong"
+          textAlign="right"
+          style={s.leaderPct}
+        >
+          {((ns / max) * 100).toFixed(0)}%
+        </BaseText>
         <View style={s.barTrack}>
           <View
             style={[
               s.barFill,
               {
                 width: barW,
-                backgroundColor: isTop3 ? rankColor : theme.color.accent,
+                backgroundColor: isTop3 ? rankColor : c.primary,
               },
             ]}
           />
@@ -427,6 +499,8 @@ function BarItem({
   isAnySelected: boolean;
   onPress: () => void;
 }) {
+  const theme = useTheme();
+  const s = useThemedStyles(makeStyles);
   const scale = useSharedValue(1);
   const lift = useSharedValue(0);
   const opacity = useSharedValue(1);
@@ -468,14 +542,20 @@ function BarItem({
   const labelStyle = useAnimatedStyle(() => ({ opacity: labelOpacity.value }));
 
   return (
-    <TouchableOpacity style={s.barCol} onPress={onPress} activeOpacity={1}>
+    <Pressable style={s.barCol} onPress={onPress}>
       <Animated.View
         style={[{ width: BAR_W, alignItems: "center", gap: 4 }, animStyle]}
       >
         {d.value > 0 && (
-          <Animated.Text style={[s.barValLabel, labelStyle]}>
-            {(d.value / 1000).toFixed(1)}k
-          </Animated.Text>
+          <Animated.View style={labelStyle}>
+            <BaseText
+              fontWeight="semibold"
+              color="mutedStrong"
+              style={s.barValLabel}
+            >
+              {(d.value / 1000).toFixed(1)}k
+            </BaseText>
+          </Animated.View>
         )}
         <View style={[s.barBody, { height: BAR_H }]}>
           <Animated.View
@@ -483,19 +563,26 @@ function BarItem({
               s.barActual,
               {
                 backgroundColor:
-                  d.value > 0 ? theme.color.accent : theme.color.border,
+                  d.value > 0 ? theme.colors.primary : theme.colors.hairline,
               },
               barStyle,
             ]}
           />
         </View>
-        <Text style={s.barMonthLabel}>{d.month}</Text>
+        <BaseText
+          fontWeight="medium"
+          color="mutedStrong"
+          style={s.barMonthLabel}
+        >
+          {d.month}
+        </BaseText>
       </Animated.View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
 function BarChart({ data }: { data: { month: string; value: number }[] }) {
+  const s = useThemedStyles(makeStyles);
   const maxVal = Math.max(...data.map((d) => d.value), 1);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
@@ -530,7 +617,13 @@ function BarChart({ data }: { data: { month: string; value: number }[] }) {
 }
 
 // ── Main screen ────────────────────────────────────────────────────────────
+const YEARS = ["2026", "2025", "2024"] as const;
+type Year = (typeof YEARS)[number];
+
 export default function HomeScreen() {
+  const theme = useTheme();
+  const c = theme.colors;
+  const s = useThemedStyles(makeStyles);
   const { width: SW } = useWindowDimensions();
   const isTablet = SW >= 768;
   const PADDING_H = isTablet ? 24 : 16;
@@ -539,12 +632,9 @@ export default function HomeScreen() {
   const SNAP_W = CARD_W + TILE_GAP;
   const CELL_W = (CARD_W - TILE_GAP) / 2;
 
-  const scrollHandler = useScrollNav();
-  const insets = useSafeAreaInsets();
-
   const carouselRef = useRef<ScrollView>(null);
   const [activeSlide, setActiveSlide] = useState(0);
-  const [year, setYear] = useState("2026");
+  const [year, setYear] = useState<Year>("2026");
   const chartData = MONTHLY_SALES[year];
 
   useEffect(() => {
@@ -571,21 +661,17 @@ export default function HomeScreen() {
   const nComAde =
     QC.nComAcctDue > 0 ? (QC.nComAcctCollection / QC.nComAcctDue) * 100 : 0;
 
+  // Below 50% the ring turns danger; otherwise it stays on the brand colour.
+  const ring = (pct: number) =>
+    pct < 50
+      ? { color: c.danger, bg: c.dangerTint }
+      : { color: c.primary, bg: c.successTint };
+
   return (
-    <Animated.ScrollView
-      onScroll={scrollHandler}
-      scrollEventThrottle={16}
-      style={{ backgroundColor: theme.color.bg }}
-      contentContainerStyle={[
-        s.content,
-        {
-          paddingTop: APP_HEADER_HEIGHT + insets.top + 16,
-          paddingBottom: BOTTOM_NAV_HEIGHT + insets.bottom + 24,
-          paddingHorizontal: PADDING_H,
-        },
-      ]}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={[s.content, { paddingTop: 16, paddingHorizontal: 8 }]}>
+      {/* ── Profit ──────────────────────────────────── */}
+      <ProfitCard />
+
       {/* ── Account Overview ──────────────────────────── */}
       <SectionHeader
         title="Account Overview"
@@ -597,7 +683,6 @@ export default function HomeScreen() {
             flexDirection: "row",
             flexWrap: "wrap",
             gap: TILE_GAP,
-            marginBottom: 4,
           }}
         >
           {TILES.map((tile, i) => (
@@ -607,7 +692,7 @@ export default function HomeScreen() {
           ))}
         </View>
       ) : (
-        <>
+        <View>
           <ScrollView
             ref={carouselRef}
             horizontal
@@ -632,13 +717,13 @@ export default function HomeScreen() {
           </ScrollView>
           {/* Dots + arrows */}
           <View style={s.dotsRow}>
-            <TouchableOpacity
+            <BaseIconButton
+              icon={ChevronLeft}
+              accessibilityLabel="Previous metric"
+              variant="ghost"
+              size="sm"
               onPress={() => scrollTo(activeSlide - 1)}
-              style={s.arrowBtn}
-              activeOpacity={0.7}
-            >
-              <ChevronLeft size={16} color={theme.color.accent} strokeWidth={2.5} />
-            </TouchableOpacity>
+            />
 
             <View style={s.dots}>
               {TILES.map((_, i) => (
@@ -649,15 +734,15 @@ export default function HomeScreen() {
               ))}
             </View>
 
-            <TouchableOpacity
+            <BaseIconButton
+              icon={ChevronRight}
+              accessibilityLabel="Next metric"
+              variant="ghost"
+              size="sm"
               onPress={() => scrollTo(activeSlide + 1)}
-              style={s.arrowBtn}
-              activeOpacity={0.7}
-            >
-              <ChevronRight size={16} color={theme.color.accent} strokeWidth={2.5} />
-            </TouchableOpacity>
+            />
           </View>
-        </>
+        </View>
       )}
 
       {/* ── Efficiency ────────────────────────────────── */}
@@ -666,75 +751,76 @@ export default function HomeScreen() {
         subtitle="Quota vs. collection performance"
       />
 
-      <Card
-        icon={TrendingUp}
-        title="Quota & Collection"
-        subtitle="Amount targets"
-      >
-        <RowItem label="Comm. Quota" value={fmtPeso(QC.comQuota)} />
-        <RowItem label="Comm. Collection" value={fmtPeso(QC.comCollection)} />
-        <RowItem label="Non-Comm. Quota" value={fmtPeso(QC.nComQuota)} />
-        <RowItem label="Non-Comm. Collection" value={fmtPeso(QC.nComCollection)} />
-      </Card>
+      <Card.Root title="Quota & Collection">
+        <Card.Subtitle>| Amount targets</Card.Subtitle>
+        <Card.MainContent>
+          <RowItem label="Comm. Quota" value={fmtPeso(QC.comQuota)} />
+          <RowItem
+            label="Comm. Collection"
+            value={fmtPeso(QC.comCollection)}
+          />
+          <RowItem label="Non-Comm. Quota" value={fmtPeso(QC.nComQuota)} />
+          <RowItem
+            label="Non-Comm. Collection"
+            value={fmtPeso(QC.nComCollection)}
+          />
+        </Card.MainContent>
+      </Card.Root>
 
-      <Card
-        icon={Users}
-        title="Accounts Due & Collected"
-        subtitle="Account count targets"
-      >
-        <RowItem label="Comm. Accounts Due" value={QC.comAcctDue} />
-        <RowItem label="Comm. Accounts Collected" value={QC.comAcctCollection} />
-        <RowItem label="Non-Comm. Accounts Due" value={QC.nComAcctDue} />
-        <RowItem label="Non-Comm. Accounts Collected" value={QC.nComAcctCollection} />
-      </Card>
+      <Card.Root title="Accounts Due & Collected">
+        <Card.Subtitle>| Account count targets</Card.Subtitle>
+        <Card.MainContent>
+          <RowItem
+            label="Comm. Accounts Due"
+            value={QC.comAcctDue.toLocaleString()}
+          />
+          <RowItem
+            label="Comm. Accounts Collected"
+            value={QC.comAcctCollection.toLocaleString()}
+          />
+          <RowItem
+            label="Non-Comm. Accounts Due"
+            value={QC.nComAcctDue.toLocaleString()}
+          />
+          <RowItem
+            label="Non-Comm. Accounts Collected"
+            value={QC.nComAcctCollection.toLocaleString()}
+          />
+        </Card.MainContent>
+      </Card.Root>
 
-      <Card
-        icon={Zap}
-        title="Efficiency Rates"
-        subtitle="Collection efficiency"
-      >
-        <View style={s.donutGrid}>
-          {[
-            {
-              title: "CVE Com",
-              pct: comEff,
-              color: comEff < 50 ? "#F87171" : theme.color.accent,
-              bg: comEff < 50 ? "#FECACA" : theme.color.successBg,
-            },
-            {
-              title: "CVE NCom",
-              pct: nComEff,
-              color: nComEff < 50 ? "#F87171" : theme.color.accent,
-              bg: nComEff < 50 ? "#FECACA" : theme.color.successBg,
-            },
-            {
-              title: "ADE Com",
-              pct: comAde,
-              color: comAde < 50 ? "#F87171" : theme.color.accent,
-              bg: comAde < 50 ? "#FECACA" : theme.color.successBg,
-            },
-            {
-              title: "ADE NCom",
-              pct: nComAde,
-              color: nComAde < 50 ? "#F87171" : theme.color.accent,
-              bg: nComAde < 50 ? "#FECACA" : theme.color.successBg,
-            },
-          ].map((d, i) => (
-            <View key={i} style={[s.donutCell, isTablet && { width: "25%" }]}>
-              <DonutChart
-                percentage={d.pct}
-                color={d.color}
-                bgColor={d.bg}
-                size={72}
-                thickness={10}
-              />
-              <AppCaption fontWeight="600" style={{ textAlign: "center" }}>
-                {d.title}
-              </AppCaption>
-            </View>
-          ))}
-        </View>
-      </Card>
+      <Card.Root title="Efficiency Rates">
+        <Card.Subtitle>| Collection efficiency</Card.Subtitle>
+        <Card.MainContent>
+          <View style={s.donutGrid}>
+            {[
+              { title: "CVE Com", pct: comEff },
+              { title: "CVE NCom", pct: nComEff },
+              { title: "ADE Com", pct: comAde },
+              { title: "ADE NCom", pct: nComAde },
+            ].map((d, i) => {
+              const { color, bg } = ring(d.pct);
+              return (
+                <View
+                  key={i}
+                  style={[s.donutCell, isTablet && { width: "25%" }]}
+                >
+                  <DonutChart
+                    percentage={d.pct}
+                    color={color}
+                    bgColor={bg}
+                    size={72}
+                    thickness={10}
+                  />
+                  <Caption fontWeight="semibold" textAlign="center">
+                    {d.title}
+                  </Caption>
+                </View>
+              );
+            })}
+          </View>
+        </Card.MainContent>
+      </Card.Root>
 
       {/* ── Performance ───────────────────────────────── */}
       <SectionHeader
@@ -742,228 +828,169 @@ export default function HomeScreen() {
         subtitle="Sales rankings and monthly trends"
       />
 
-      <Card
-        icon={Trophy}
-        title="Sales Agent Leaderboard"
-        subtitle="Ranked by new sales this month"
-      >
-        {LEADERBOARD.map((a, i) => (
-          <LeaderItem
-            key={i}
-            name={a.name}
-            ns={a.ns}
-            max={LEADERBOARD[0].ns}
-            rank={i + 1}
-          />
-        ))}
-      </Card>
-
-      <Card
-        icon={BarChart2}
-        title="Monthly New Sales"
-        subtitle="New plans enrolled per month"
-      >
-        <View style={s.yearRow}>
-          {["2026", "2025", "2024"].map((y) => (
-            <AppButton
-              key={y}
-              size="sm"
-              variant={year === y ? "primary" : "secondary"}
-              textStyle={year !== y ? { color: theme.color.muted } : undefined}
-              onPress={() => setYear(y)}
-              activeOpacity={0.75}
-            >
-              {y}
-            </AppButton>
+      <Card.Root title="Sales Agent Leaderboard">
+        <Card.Subtitle>| Ranked by new sales this month</Card.Subtitle>
+        <Card.MainContent>
+          {LEADERBOARD.map((a, i) => (
+            <LeaderItem
+              key={i}
+              name={a.name}
+              ns={a.ns}
+              max={LEADERBOARD[0].ns}
+              rank={i + 1}
+            />
           ))}
-        </View>
-        <BarChart key={year} data={chartData} />
-      </Card>
-    </Animated.ScrollView>
+        </Card.MainContent>
+      </Card.Root>
+
+      <Card.Root title="Monthly New Sales">
+        <Card.Subtitle>| New plans enrolled per month</Card.Subtitle>
+        <Card.MainContent>
+          <View style={s.yearRow}>
+            <SegmentedControl
+              options={YEARS.map((y) => ({ value: y, label: y }))}
+              value={year}
+              onValueChange={setYear}
+            />
+          </View>
+          <BarChart key={year} data={chartData} />
+        </Card.MainContent>
+      </Card.Root>
+    </View>
   );
 }
 
 // ── Styles ─────────────────────────────────────────────────────────────────
-const s = StyleSheet.create({
-  content: {
-    paddingTop: 16,
-    gap: 4,
-  },
+const makeStyles = (t: StPeterTheme) =>
+  StyleSheet.create({
+    content: {
+      gap: 12,
+    },
 
-  // Tile (KPI carousel card)
-  tile: {
-    borderRadius: 24,
-    borderWidth: 2,
-    padding: 18,
-    overflow: "hidden",
-    marginBottom: 4,
-  },
-  tileHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 12,
-  },
-  tileMomRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    marginTop: 6,
-    paddingTop: 6,
-    borderTopColor: "rgba(0,0,0,0.06)",
-  },
-  tileTrendCol: {
-    alignItems: "flex-end",
-    gap: 3,
-  },
-  tilePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: theme.radius.full,
-  },
-  tilePillText: {
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  tileChangeLabel: {
-    fontSize: 10,
-    fontWeight: "600",
-    letterSpacing: 0.2,
-  },
+    profitCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+    },
 
-  // Carousel dots + arrows
-  dotsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    marginTop: 10,
-    marginBottom: 20,
-  },
-  arrowBtn: {
-    width: 28,
-    height: 28,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dots: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: theme.color.border,
-  },
-  dotActive: {
-    backgroundColor: theme.color.accent,
-    width: 18,
-  },
+    // Carousel dots + arrows
+    dotsRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 12,
+      marginTop: 10,
+    },
+    dots: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    dot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: t.colors.hairline,
+    },
+    dotActive: {
+      backgroundColor: t.colors.primary,
+      width: 18,
+    },
 
-  // Donut grid
-  donutGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingTop: 8,
-  },
-  donutCell: {
-    width: "50%",
-    alignItems: "center",
-    paddingVertical: 12,
-    gap: 6,
-  },
+    // Donut grid
+    donutGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+    },
+    donutCell: {
+      width: "50%",
+      alignItems: "center",
+      paddingVertical: 12,
+      gap: 6,
+    },
 
-  // Leaderboard
-  leaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 10,
-    borderBottomColor: theme.color.border,
-  },
-  rankBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rankText: {
-    fontSize: 9,
-    fontWeight: "700",
-  },
-  leaderAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  leaderAvatarText: {
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  leaderPct: {
-    fontSize: 9,
-    fontWeight: "600",
-    color: theme.color.muted,
-    textAlign: "right",
-    marginBottom: 3,
-  },
-  barTrack: {
-    height: 4,
-    backgroundColor: theme.color.border,
-    borderRadius: 2,
-    overflow: "hidden",
-  },
-  barFill: {
-    height: 4,
-    borderRadius: 2,
-  },
+    // Leaderboard
+    leaderRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingVertical: 10,
+    },
+    rankBadge: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    rankText: {
+      fontSize: 9,
+      lineHeight: 12,
+    },
+    leaderAvatar: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    leaderAvatarText: {
+      fontSize: 11,
+      lineHeight: 14,
+    },
+    leaderPct: {
+      fontSize: 9,
+      lineHeight: 12,
+      marginBottom: 3,
+    },
+    barTrack: {
+      height: 4,
+      backgroundColor: t.colors.hairline,
+      borderRadius: 2,
+      overflow: "hidden",
+    },
+    barFill: {
+      height: 4,
+      borderRadius: 2,
+    },
 
-  // Year picker row
-  yearRow: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 6,
-    marginBottom: 12,
-  },
+    // Year picker row
+    yearRow: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      marginBottom: 12,
+    },
 
-  // Bar chart
-  barChartWrap: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: BAR_GAP,
-    paddingHorizontal: 4,
-    paddingBottom: 4,
-  },
-  barCol: {
-    width: BAR_W,
-    alignItems: "center",
-    gap: 4,
-  },
-  barValLabel: {
-    fontSize: 8,
-    color: theme.color.muted,
-    fontWeight: "600",
-  },
-  barBody: {
-    justifyContent: "flex-end",
-    alignItems: "center",
-  },
-  barActual: {
-    width: BAR_W,
-    borderTopLeftRadius: 5,
-    borderTopRightRadius: 5,
-  },
-  barMonthLabel: {
-    fontSize: 9,
-    color: theme.color.muted,
-    fontWeight: "500",
-  },
-});
+    // Bar chart
+    barChartWrap: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      gap: BAR_GAP,
+      paddingHorizontal: 4,
+      paddingBottom: 4,
+    },
+    barCol: {
+      width: BAR_W,
+      alignItems: "center",
+      gap: 4,
+    },
+    barValLabel: {
+      fontSize: 8,
+      lineHeight: 11,
+    },
+    barBody: {
+      justifyContent: "flex-end",
+      alignItems: "center",
+    },
+    barActual: {
+      width: BAR_W,
+      borderTopLeftRadius: 5,
+      borderTopRightRadius: 5,
+    },
+    barMonthLabel: {
+      fontSize: 9,
+      lineHeight: 12,
+    },
+  });

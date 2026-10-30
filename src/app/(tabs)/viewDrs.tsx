@@ -9,36 +9,39 @@ import {
   Trash2,
   Users,
 } from "lucide-react-native";
-import React, { useMemo, useState } from "react";
 import {
+  alpha,
+  BaseButton,
+  BaseText,
+  BottomSheet,
+  Card,
+  DataTable,
+  DrawerPanel,
+  EmptyStateCard,
+  LookupField,
+  MessageDialog,
+  MetricCard,
+  OSPBadge,
+  RowItem,
+  SectionTitle,
+  Small,
+  useTheme,
+  useThemedStyles,
+  type ColorToken,
+  type DataTableProps,
+  type IconComponent,
+  type LookupColumn,
+  type OSPBadgeType,
+} from "osp-ui-kit-native";
+import React, { useMemo, useState, type ReactNode } from "react";
+import {
+  Pressable,
   StyleSheet,
-  Text,
-  TouchableOpacity,
   useWindowDimensions,
   View,
 } from "react-native";
-import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { APP_HEADER_HEIGHT } from "@/components/navigation/AppHeader";
-import { BOTTOM_NAV_HEIGHT } from "@/components/navigation/BottomNavBar";
-import type { TableColDef } from "@/components/ui";
-import {
-  AlertModal,
-  AppButton,
-  Badge,
-  BRAND_COLORS,
-  Card,
-  ConfirmModal,
-  EmptyState,
-  LookupField,
-  RowItem,
-  SwipeDismissModal,
-  Table,
-  theme,
-  useAlertModal,
-} from "@/components/ui";
-import { useScrollNav } from "@/hooks/use-scroll-nav";
 import {
   DRS_ITEMS,
   drsAmount,
@@ -48,13 +51,23 @@ import {
   type DrsPaymentRow,
   type DrsStatus,
 } from "@/data/drs";
+import { useAlertModal } from "@/hooks/use-alert-modal";
+
+// ── Types ────────────────────────────────────────────────────────────────────
+
+// `@tanstack/react-table`'s ColumnDef, taken from the kit's DataTable props
+// (the package is a kit dependency, not a direct app dependency).
+type ColumnDef<T> = DataTableProps<T>["columns"][number];
 
 // ── Static data ─────────────────────────────────────────────────────────────
 
-const STATUS_STYLES: Record<DrsStatus, { color: string; bg: string }> = {
-  Pending: { color: theme.color.warning, bg: theme.color.warningBg },
-  Validated: { color: theme.color.accent, bg: theme.color.successBg },
-  "For Deposit": { color: theme.color.info, bg: theme.color.infoBg },
+const STATUS_STYLES: Record<
+  DrsStatus,
+  { badge: OSPBadgeType; color: ColorToken; bg: ColorToken; fg: ColorToken }
+> = {
+  Pending: { badge: "warning", color: "warning", bg: "warningTint", fg: "warningFg" },
+  Validated: { badge: "success", color: "success", bg: "successTint", fg: "successFg" },
+  "For Deposit": { badge: "info", color: "info", bg: "infoTint", fg: "infoFg" },
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -81,66 +94,186 @@ function fmtDateStr(iso: string) {
 
 // ── Column definitions ───────────────────────────────────────────────────────
 
-const PAYMENT_COLUMNS: TableColDef<DrsPaymentRow>[] = [
+const PAYMENT_COLUMNS: ColumnDef<DrsPaymentRow>[] = [
   {
-    key: "SI",
-    label: "SI No.",
-    width: 88,
-    renderCell: (r) => <Text style={styles.cellStrong}>{r.SI}</Text>,
-  },
-  {
-    key: "Name",
-    label: "Name",
-    width: 140,
-    renderCell: (r) => (
-      <Text style={styles.cellBody} numberOfLines={2}>
-        {r.Name}
-      </Text>
+    accessorKey: "SI",
+    header: "SI No.",
+    meta: { width: 88 },
+    cell: ({ row }) => (
+      <BaseText fontSize="xs" fontWeight="bold" color="heading">
+        {row.original.SI}
+      </BaseText>
     ),
   },
   {
-    key: "InstNo",
-    label: "Inst. No",
-    width: 60,
-    align: "center",
-    renderCell: (r) => (
-      <Text style={[styles.cellBody, { textAlign: "center" }]}>
-        {r.InstNo}
-      </Text>
+    accessorKey: "Name",
+    header: "Name",
+    meta: { width: 140 },
+    cell: ({ row }) => (
+      <BaseText fontSize="xs" numberOfLines={2}>
+        {row.original.Name}
+      </BaseText>
     ),
   },
   {
-    key: "PayClass",
-    label: "Class",
-    width: 76,
-    renderCell: (r) => (
-      <Badge
-        label={r.PayClass}
-        color={theme.color.accent}
-        backgroundColor={theme.color.accent + "18"}
-      />
+    accessorKey: "InstNo",
+    header: "Inst. No",
+    meta: { width: 60 },
+    cell: ({ row }) => (
+      <BaseText fontSize="xs" textAlign="center">
+        {row.original.InstNo}
+      </BaseText>
     ),
   },
   {
-    key: "SIAmount",
-    label: "Amount",
-    width: 100,
-    align: "right",
-    renderCell: (r) => (
-      <Text style={[styles.cellStrong, { textAlign: "right" }]}>
-        {fmt$(r.SIAmount)}
-      </Text>
+    accessorKey: "PayClass",
+    header: "Class",
+    meta: { width: 76 },
+    cell: ({ row }) => (
+      <OSPBadge type="success">{row.original.PayClass}</OSPBadge>
+    ),
+  },
+  {
+    accessorKey: "SIAmount",
+    header: "Amount",
+    meta: { width: 100, numeric: true },
+    cell: ({ row }) => (
+      <BaseText
+        fontSize="xs"
+        fontWeight="bold"
+        color="heading"
+        textAlign="right"
+      >
+        {fmt$(row.original.SIAmount)}
+      </BaseText>
     ),
   },
 ];
 
+const LOOKUP_COLUMNS: LookupColumn<DrsItem>[] = [
+  { key: "name", header: "Reference" },
+  {
+    key: "SlipDate",
+    header: "Slip Date",
+    render: (_, row) => fmtDateStr(row.SlipDate),
+  },
+  {
+    key: "Status",
+    header: "Status",
+    render: (_, row) => (
+      <OSPBadge type={STATUS_STYLES[row.Status].badge}>{row.Status}</OSPBadge>
+    ),
+  },
+  {
+    key: "payments",
+    header: "Amount",
+    enableSorting: false,
+    render: (_, row) => fmt$(drsAmount(row)),
+  },
+];
+
+// ── Detail sheet (bottom sheet on phone, side panel on tablet+) ─────────────
+
+function DetailSheet({
+  open,
+  onClose,
+  title,
+  isTablet,
+  footer,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  isTablet: boolean;
+  footer?: ReactNode;
+  children: ReactNode;
+}) {
+  const insets = useSafeAreaInsets();
+  if (isTablet) {
+    return (
+      <DrawerPanel
+        open={open}
+        onOpenChange={(o) => !o && onClose()}
+        title={title}
+        placement="end"
+        size="md"
+        footer={footer}
+        insets={{ top: insets.top, bottom: insets.bottom }}
+      >
+        {children}
+      </DrawerPanel>
+    );
+  }
+  return (
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title={title}
+      footer={footer}
+      bottomInset={insets.bottom}
+    >
+      {children}
+    </BottomSheet>
+  );
+}
+
+// ── Section card (Card with an icon + title header row) ─────────────────────
+
+function SectionCard({
+  icon: Icon,
+  title,
+  subtitle,
+  children,
+}: {
+  icon: IconComponent;
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+}) {
+  const theme = useTheme();
+  return (
+    <Card.Root style={{ padding: 16 }}>
+      <Card.MainContent>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 10,
+          }}
+        >
+          <View
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: theme.radii.pill,
+              backgroundColor: alpha(theme.colors.primary, 0.12),
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Icon size={14} color={theme.colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <SectionTitle>{title}</SectionTitle>
+            {subtitle ? <Small color="mutedStrong">{subtitle}</Small> : null}
+          </View>
+        </View>
+        {children}
+      </Card.MainContent>
+    </Card.Root>
+  );
+}
+
 // ── Screen ──────────────────────────────────────────────────────────────────
 
 export default function ViewDrsScreen() {
-  const scrollHandler = useScrollNav();
-  const insets = useSafeAreaInsets();
+  const theme = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
+  const isWide = width >= 1024;
   const router = useRouter();
 
   const [items, setItems] = useState<DrsItem[]>(DRS_ITEMS);
@@ -197,209 +330,248 @@ export default function ViewDrsScreen() {
 
   return (
     <>
-      <Animated.ScrollView
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        style={{ backgroundColor: theme.color.bg }}
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: APP_HEADER_HEIGHT + insets.top + 16,
-            paddingBottom: BOTTOM_NAV_HEIGHT + insets.bottom + 16,
-            paddingHorizontal: isTablet ? 24 : 16,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.content}>
         {/* Summary stats */}
         <View style={isTablet ? styles.statsTablet : styles.statsPhone}>
-          <Card
+          <MetricCard
             icon={FileText}
-            title="Remittance Slips"
-            subtitle="Total encoded"
-            style={{ flex: 1, marginBottom: 0 }}
-            bodyStyle={{ paddingVertical: 12 }}
-          >
-            <View style={styles.statCenter}>
-              <Text
-                style={[styles.statCount, { color: BRAND_COLORS.primaryGreen }]}
-              >
-                {items.length}
-              </Text>
-            </View>
-          </Card>
-          <Card
+            label="Remittance Slips"
+            subtitle="| Total encoded"
+            value={String(items.length)}
+            accent="primary"
+            style={isTablet ? { flex: 1 } : undefined}
+          />
+          <MetricCard
             icon={Banknote}
-            title="Total Value"
-            subtitle="All slips combined"
-            style={{ flex: 1, marginBottom: 0 }}
-            bodyStyle={{ paddingVertical: 12 }}
-          >
-            <View style={styles.statCenter}>
-              <Text style={styles.statAmount} numberOfLines={1}>
-                {fmt$(totalAmount)}
-              </Text>
-            </View>
-          </Card>
+            label="Total Value"
+            subtitle="| All slips combined"
+            value={fmt$(totalAmount)}
+            accent="success"
+            style={isTablet ? { flex: 1 } : undefined}
+          />
         </View>
 
         {/* New DRS action */}
-        <AppButton
-          variant="secondary"
+        <BaseButton
+          variant="outline"
           size="md"
+          fullWidth
           style={{ marginTop: 12 }}
-          leftIcon={<Plus size={15} color={theme.color.accent} />}
+          leftIcon={Plus}
           onPress={() => router.push("/payment" as never)}
         >
           New DRS
-        </AppButton>
+        </BaseButton>
 
         {/* Search */}
-        <LookupField<DrsItem>
-          label="Search Remittance Slip"
-          placeholder="Search by reference…"
-          modalTitle="Search Remittance Slip"
-          data={sortedItems}
-          searchKeys={["name"]}
-          value={null}
-          onSelect={(item) => item && setSelected(item)}
-          renderDisplay={(item) => item.name}
-          renderMeta={(item) =>
-            `${fmtDateStr(item.SlipDate)} · ${fmt$(drsAmount(item))}`
-          }
-          keyExtractor={(item) => item.id}
-          style={{ marginTop: 14 }}
-        />
+        <View style={{ marginTop: 14 }}>
+          <LookupField<DrsItem>
+            label="Search Remittance Slip"
+            placeholder="Search by reference…"
+            modalTitle="Search Remittance Slip"
+            dataSource={sortedItems}
+            searchKeys={["name"]}
+            columns={LOOKUP_COLUMNS}
+            value={null}
+            onSelect={(item) => item && setSelected(item)}
+            renderDisplay={(item) => item.name}
+            variant="search"
+          />
+        </View>
 
         {/* Slip list */}
         <View style={styles.slipList}>
           {sortedItems.length === 0 ? (
-            <EmptyState
+            <EmptyStateCard
               icon={FileText}
               title="No remittance slips"
-              message="Encoded DRS records will appear here."
+              description="Encoded DRS records will appear here."
             />
           ) : (
             sortedItems.map((item) => {
-              const style = STATUS_STYLES[item.Status];
+              const status = STATUS_STYLES[item.Status];
+              const statusColor = theme.colors[status.color];
               const totals = drsTotals(item);
               const planholders = drsPlanholders(item);
               return (
-                <TouchableOpacity
+                <Pressable
                   key={item.id}
-                  activeOpacity={0.8}
+                  accessibilityRole="button"
                   onPress={() => setSelected(item)}
-                  style={styles.slipCard}
+                  style={({ pressed }) => [
+                    styles.slipCard,
+                    pressed && { opacity: 0.8 },
+                  ]}
                 >
                   <View
-                    style={[styles.slipStripe, { backgroundColor: style.color }]}
+                    style={[styles.slipStripe, { backgroundColor: statusColor }]}
                   />
                   <View style={styles.slipHeader}>
                     <View style={styles.slipHeaderLeft}>
                       <View
                         style={[
                           styles.slipIconWrap,
-                          { backgroundColor: style.color + "18" },
+                          { backgroundColor: alpha(statusColor, 0.12) },
                         ]}
                       >
-                        <FileText size={15} color={style.color} />
+                        <FileText size={15} color={statusColor} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.slipName} numberOfLines={1}>
+                        <BaseText
+                          fontSize="sm"
+                          fontWeight="bold"
+                          color="heading"
+                          numberOfLines={1}
+                        >
                           {item.name}
-                        </Text>
+                        </BaseText>
                         <View style={styles.slipDateRow}>
-                          <Calendar size={11} color={theme.color.muted} />
-                          <Text style={styles.slipDateText}>
+                          <Calendar size={11} color={theme.colors.muted} />
+                          <Small color="muted">
                             {fmtDateStr(item.SlipDate)}
-                          </Text>
+                          </Small>
                         </View>
                       </View>
                     </View>
-                    <Badge
-                      label={item.Status}
-                      color={style.color}
-                      backgroundColor={style.bg}
-                    />
+                    <OSPBadge type={status.badge}>{item.Status}</OSPBadge>
                   </View>
 
                   <View style={styles.slipChips}>
                     <View style={styles.chip}>
-                      <Banknote size={11} color={theme.color.body} />
-                      <Text style={styles.chipText}>{fmt$(totals.amount)}</Text>
+                      <Banknote size={11} color={theme.colors.mutedStrong} />
+                      <Small fontWeight="semibold" color="mutedStrong">
+                        {fmt$(totals.amount)}
+                      </Small>
                     </View>
                     <View style={styles.chip}>
-                      <Users size={11} color={theme.color.body} />
-                      <Text style={styles.chipText}>
+                      <Users size={11} color={theme.colors.mutedStrong} />
+                      <Small fontWeight="semibold" color="mutedStrong">
                         {planholders} planholder{planholders === 1 ? "" : "s"}
-                      </Text>
+                      </Small>
                     </View>
                   </View>
 
                   <View style={styles.slipFooter}>
-                    <Text style={styles.slipFooterHint}>
-                      Tap to view details
-                    </Text>
-                    <ChevronRight size={14} color={theme.color.muted} />
+                    <Small color="muted">Tap to view details</Small>
+                    <ChevronRight size={14} color={theme.colors.muted} />
                   </View>
-                </TouchableOpacity>
+                </Pressable>
               );
             })
           )}
         </View>
-      </Animated.ScrollView>
+      </View>
 
       {/* DRS detail sheet */}
-      <SwipeDismissModal
-        visible={selected !== null}
-        onDismiss={() => setSelected(null)}
+      <DetailSheet
+        open={selected !== null}
+        onClose={() => setSelected(null)}
         title={selected?.name ?? "DRS Details"}
-        sheetWidth={480}
+        isTablet={isWide}
+        footer={
+          selected ? (
+            <View style={{ gap: 8 }}>
+              {selected.id === oldestId && (
+                <BaseButton
+                  size="lg"
+                  fullWidth
+                  onPress={() => handleEncodeDeposit(selected)}
+                >
+                  Encode Deposit
+                </BaseButton>
+              )}
+              <BaseButton
+                variant="outline"
+                size="lg"
+                fullWidth
+                onPress={() => handleAddDisbursement(selected)}
+              >
+                Add Disbursement
+              </BaseButton>
+              {selected.id === latestId && (
+                <BaseButton
+                  tone="danger"
+                  size="lg"
+                  fullWidth
+                  leftIcon={Trash2}
+                  onPress={() => handleDelete(selected)}
+                >
+                  Delete DRS
+                </BaseButton>
+              )}
+            </View>
+          ) : undefined
+        }
       >
         {selected &&
           (() => {
-            const style = STATUS_STYLES[selected.Status];
+            const status = STATUS_STYLES[selected.Status];
             const totals = drsTotals(selected);
-            const isLatest = selected.id === latestId;
-            const isOldest = selected.id === oldestId;
             return (
-              <View style={styles.sheetBody}>
+              <>
                 <View
                   style={[
                     styles.sheetTile,
-                    { backgroundColor: style.bg, borderColor: style.color + "33" },
+                    {
+                      backgroundColor: theme.colors[status.bg],
+                      borderColor: alpha(theme.colors[status.color], 0.2),
+                    },
                   ]}
                 >
                   <View style={styles.sheetTileTop}>
-                    <Text style={[styles.sheetTileName, { color: style.color }]}>
+                    <BaseText
+                      fontSize="md"
+                      fontWeight="extrabold"
+                      color={status.fg}
+                      style={{ letterSpacing: 0.2 }}
+                    >
                       {selected.name}
-                    </Text>
-                    <Badge
-                      label={selected.Status}
-                      color={style.color}
-                      backgroundColor={theme.color.card}
-                    />
+                    </BaseText>
+                    <OSPBadge type={status.badge}>{selected.Status}</OSPBadge>
                   </View>
                   <View style={styles.sheetTileRow}>
-                    <Calendar size={12} color={theme.color.body} />
-                    <Text style={styles.sheetTileMeta}>
+                    <Calendar size={12} color={theme.colors.mutedStrong} />
+                    <Small color="mutedStrong">
                       {fmtDateStr(selected.SlipDate)}
-                    </Text>
+                    </Small>
                   </View>
                 </View>
 
-                <Card
+                <SectionCard
                   title="Payments"
                   subtitle={`${totals.count} record(s)`}
                   icon={Receipt}
-                  style={{ marginBottom: 12 }}
                 >
-                  <Table<DrsPaymentRow>
+                  <DataTable<DrsPaymentRow>
                     data={selected.payments}
                     columns={PAYMENT_COLUMNS}
-                    keyExtractor={(r) => r.SI}
-                    emptyTitle="No payments"
-                    emptyMessage="This DRS has no encoded payments."
+                    getRowId={(r) => r.SI}
+                    features={{
+                      search: false,
+                      sorting: false,
+                      pagination: false,
+                      columnToggle: false,
+                      filtering: false,
+                      selection: false,
+                      detailSidebar: false,
+                    }}
+                    emptyState="This DRS has no encoded payments."
+                    mobileConfig={{
+                      viewMode: "card",
+                      primaryField: "Name",
+                      titleTransform: "none",
+                      secondaryField: "SI",
+                      badgeField: "PayClass",
+                      visibleFields: ["InstNo", "SIAmount"],
+                      labelMap: {
+                        SI: "SI No.",
+                        InstNo: "Inst. No",
+                        SIAmount: "Amount",
+                      },
+                      valueFormatter: {
+                        SIAmount: (v) => fmt$(Number(v)),
+                      },
+                    }}
                   />
                   <View style={styles.totalsBox}>
                     <RowItem label="Total Payments" value={totals.count} />
@@ -409,60 +581,32 @@ export default function ViewDrsScreen() {
                       value={fmt$(totals.commission)}
                     />
                   </View>
-                </Card>
-
-                <View style={{ gap: 8 }}>
-                  {isOldest && (
-                    <AppButton
-                      size="lg"
-                      onPress={() => handleEncodeDeposit(selected)}
-                    >
-                      Encode Deposit
-                    </AppButton>
-                  )}
-                  <AppButton
-                    variant="secondary"
-                    size="lg"
-                    onPress={() => handleAddDisbursement(selected)}
-                  >
-                    Add Disbursement
-                  </AppButton>
-                  {isLatest && (
-                    <AppButton
-                      variant="destructive"
-                      size="lg"
-                      leftIcon={<Trash2 size={15} color="#fff" />}
-                      onPress={() => handleDelete(selected)}
-                    >
-                      Delete DRS
-                    </AppButton>
-                  )}
-                </View>
-              </View>
+                </SectionCard>
+              </>
             );
           })()}
-      </SwipeDismissModal>
+      </DetailSheet>
 
       {/* Delete confirmation */}
-      <ConfirmModal
-        visible={confirmDeleteItem !== null}
-        onCancel={() => setConfirmDeleteItem(null)}
+      <MessageDialog
+        open={confirmDeleteItem !== null}
+        onOpenChange={(o) => !o && setConfirmDeleteItem(null)}
         onConfirm={performDelete}
-        variant="error"
+        variant="confirmation"
         title="Delete DRS"
         message={`Do you want to delete ${confirmDeleteItem?.name}? This cannot be undone.`}
-        cancelLabel="No"
-        confirmLabel="Yes"
-        destructive
+        cancelText="No"
+        confirmText="Yes"
       />
 
       {/* Status alert */}
-      <AlertModal
-        visible={alertState.visible}
-        onDismiss={dismissAlert}
+      <MessageDialog
+        open={alertState.open}
+        onOpenChange={(o) => !o && dismissAlert()}
         variant={alertState.variant}
         title={alertState.title}
         message={alertState.message}
+        confirmText="OK"
       />
     </>
   );
@@ -470,116 +614,103 @@ export default function ViewDrsScreen() {
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  content: { padding: 16, gap: 0 },
+const makeStyles = (t: ReturnType<typeof useTheme>) =>
+  StyleSheet.create({
+    content: { paddingVertical: 8 },
 
-  // Summary stats
-  statsTablet: { flexDirection: "row", gap: 12, alignItems: "stretch" },
-  statsPhone: { flexDirection: "row", gap: 10, alignItems: "stretch" },
-  statCenter: { alignItems: "center", justifyContent: "center" },
-  statCount: { fontSize: 32, fontWeight: "900", lineHeight: 38 },
-  statAmount: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: theme.color.ink,
-  },
+    // Summary stats
+    statsTablet: { flexDirection: "row", gap: 12, alignItems: "stretch" },
+    statsPhone: { gap: 10 },
 
-  // Slip list
-  slipList: { gap: 10, marginTop: 14 },
-  slipCard: {
-    position: "relative",
-    overflow: "hidden",
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    backgroundColor: theme.color.card,
-    paddingLeft: 16,
-    paddingRight: 14,
-    paddingTop: 12,
-    paddingBottom: 10,
-  },
-  slipStripe: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 4,
-  },
-  slipHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 8,
-    marginBottom: 8,
-  },
-  slipHeaderLeft: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
-  slipIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: theme.radius.full,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  slipName: { fontSize: 14, fontWeight: "700", color: theme.color.ink },
-  slipDateRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 2,
-  },
-  slipDateText: { fontSize: 11, color: theme.color.muted },
-  slipChips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: theme.radius.full,
-    backgroundColor: BRAND_COLORS.subtleBg,
-  },
-  chipText: { fontSize: 11, fontWeight: "600", color: theme.color.body },
-  slipFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.color.border,
-    paddingTop: 8,
-  },
-  slipFooterHint: { fontSize: 11, color: theme.color.muted },
+    // Slip list
+    slipList: { gap: 10, marginTop: 14 },
+    slipCard: {
+      position: "relative",
+      overflow: "hidden",
+      borderRadius: t.radii.card,
+      backgroundColor: t.colors.surface,
+      boxShadow: t.shadows.card,
+      paddingLeft: 16,
+      paddingRight: 14,
+      paddingTop: 12,
+      paddingBottom: 10,
+    },
+    slipStripe: {
+      position: "absolute",
+      left: 0,
+      top: 0,
+      bottom: 0,
+      width: 4,
+    },
+    slipHeader: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      gap: 8,
+      marginBottom: 8,
+    },
+    slipHeaderLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      flex: 1,
+    },
+    slipIconWrap: {
+      width: 30,
+      height: 30,
+      borderRadius: t.radii.pill,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    slipDateRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      marginTop: 2,
+    },
+    slipChips: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+      marginBottom: 8,
+    },
+    chip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: t.radii.pill,
+      backgroundColor: t.colors.canvas,
+    },
+    slipFooter: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: t.colors.hairline,
+      paddingTop: 8,
+    },
 
-  // Detail sheet
-  sheetBody: { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 8 },
-  sheetTile: {
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    padding: 14,
-    marginBottom: 12,
-  },
-  sheetTileTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 6,
-  },
-  sheetTileName: {
-    fontSize: 16,
-    fontWeight: "800",
-    letterSpacing: 0.2,
-  },
-  sheetTileRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  sheetTileMeta: { fontSize: 12, color: theme.color.body },
-  totalsBox: {
-    backgroundColor: BRAND_COLORS.subtleBg,
-    borderRadius: theme.radius.sm,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    paddingHorizontal: 10,
-    marginTop: 10,
-  },
-
-  // Table cells
-  cellStrong: { fontSize: 12, fontWeight: "700", color: theme.color.ink },
-  cellBody: { fontSize: 12, color: theme.color.body },
-});
+    // Detail sheet
+    sheetTile: {
+      borderRadius: t.radii.card,
+      borderWidth: 1,
+      padding: 14,
+    },
+    sheetTileTop: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 6,
+    },
+    sheetTileRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+    totalsBox: {
+      backgroundColor: t.colors.canvas,
+      borderRadius: t.radii.sm,
+      borderWidth: 1,
+      borderColor: t.colors.hairline,
+      paddingHorizontal: 10,
+      marginTop: 10,
+    },
+  });

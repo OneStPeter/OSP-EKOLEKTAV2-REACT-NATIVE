@@ -1,47 +1,7 @@
-import { LinearGradient } from "expo-linear-gradient";
-import { useFocusEffect } from "expo-router";
-import {
-  Briefcase,
-  Building2,
-  Calendar,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ChevronUp,
-  Clock,
-  CreditCard,
-  Ellipsis,
-  FileText,
-  HandCoins,
-  Hash,
-  History,
-  MapPin,
-  MapPinned,
-  Phone,
-  RefreshCw,
-  Replace,
-  Search,
-  Trash2,
-  TrendingUpDown,
-  User,
-  UserPen,
-  Users,
-  X,
-} from "lucide-react-native";
-import React, { useCallback, useMemo, useRef, useState } from "react";
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-} from "react-native";
-import Animated from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { UserSquare } from "lucide-react-native";
+import { EmptyStateCard } from "osp-ui-kit-native";
+import React from "react";
+import { View } from "react-native";
 
 import { APP_HEADER_HEIGHT } from "@/components/navigation/AppHeader";
 import { BOTTOM_NAV_HEIGHT } from "@/components/navigation/BottomNavBar";
@@ -459,40 +419,12 @@ function RequestCard({
 /** Vertical step timeline shown in the request tracker sheet. */
 function RequestTimeline({ request }: { request: PlanholderRequest }) {
   return (
-    <View style={s.timeline}>
-      {request.steps.map((label, i) => {
-        const done = i < request.currentStep;
-        const active = i === request.currentStep - 1;
-        return (
-          <View key={label} style={s.timelineRow}>
-            <View style={s.timelineRail}>
-              <View
-                style={[
-                  s.timelineNode,
-                  done && s.timelineNodeDone,
-                  active && s.timelineNodeActive,
-                ]}
-              />
-              {i < request.steps.length - 1 && (
-                <View
-                  style={[
-                    s.timelineConnector,
-                    i < request.currentStep - 1 && s.timelineConnectorDone,
-                  ]}
-                />
-              )}
-            </View>
-            <View style={s.timelineBody}>
-              <Text style={[s.timelineLabel, done && s.timelineLabelDone]}>
-                {label}
-              </Text>
-              <Text style={s.timelineHint}>
-                {done ? (active ? "In progress" : "Completed") : "Pending"}
-              </Text>
-            </View>
-          </View>
-        );
-      })}
+    <View style={{ paddingTop: 16, paddingHorizontal: 8 }}>
+      <EmptyStateCard
+        icon={UserSquare}
+        title="Planholder Profile"
+        description="Coming soon"
+      />
     </View>
   );
 }

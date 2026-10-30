@@ -1,36 +1,36 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Banknote, PhilippinePeso, Search } from "lucide-react-native";
-import React, { useEffect, useMemo, useState } from "react";
-import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import Animated from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-import { APP_HEADER_HEIGHT } from "@/components/navigation/AppHeader";
-import { BOTTOM_NAV_HEIGHT } from "@/components/navigation/BottomNavBar";
-import type { TableColDef } from "@/components/ui";
+import { Search } from "lucide-react-native";
 import {
-  AlertModal,
-  AppButton,
-  Badge,
+  BaseButton,
+  BaseText,
   Card,
-  ConfirmModal,
-  EmptyState,
+  DataTable,
+  EmptyStateCard,
   FloatingLabelInput,
+  FloatingLabelSelect,
   LookupField,
+  MessageDialog,
+  OSPBadge,
   RowItem,
-  Table,
-  theme,
-  useAlertModal,
+  useThemedStyles,
+  type DataTableProps,
   type FloatingLabelSelectOption,
-} from "@/components/ui";
+  type LookupColumn,
+  type OSPBadgeType,
+} from "osp-ui-kit-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { StyleSheet, useWindowDimensions, View } from "react-native";
+
+import { DateTimeField } from "@/components/DateTimeField";
+import { useAlertModal } from "@/hooks/use-alert-modal";
 import {
   DRS_ITEMS,
   drsAmount,
   drsTotals,
   type DrsItem,
   type DrsPaymentRow,
+  type DrsStatus,
 } from "@/data/drs";
-import { useScrollNav } from "@/hooks/use-scroll-nav";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -48,6 +48,12 @@ const BANK_BRANCHES: BankBranch[] = [
 const BANK_BRANCH_OPTIONS: FloatingLabelSelectOption[] = BANK_BRANCHES.map(
   (b) => ({ value: b.code, label: `${b.name} — ${b.branch}` }),
 );
+
+const STATUS_BADGE: Record<DrsStatus, OSPBadgeType> = {
+  Pending: "warning",
+  Validated: "success",
+  "For Deposit": "info",
+};
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -73,44 +79,63 @@ function fmtDateTime(d: Date) {
 
 // ── Column definitions ───────────────────────────────────────────────────────
 
-const PAYMENT_COLUMNS: TableColDef<DrsPaymentRow>[] = [
+// Typed through the kit so the screen needs no direct @tanstack import.
+type ColumnDefs<T> = DataTableProps<T>["columns"];
+
+const PAYMENT_COLUMNS: ColumnDefs<DrsPaymentRow> = [
   {
-    key: "SI",
-    label: "SI No.",
-    width: 88,
-    renderCell: (r) => <Text style={styles.cellStrong}>{r.SI}</Text>,
-  },
-  {
-    key: "Name",
-    label: "Name",
-    width: 140,
-    renderCell: (r) => (
-      <Text style={styles.cellBody} numberOfLines={2}>
-        {r.Name}
-      </Text>
+    accessorKey: "SI",
+    header: "SI No.",
+    meta: { width: 88 },
+    cell: ({ row }) => (
+      <BaseText fontSize="xs" fontWeight="bold">
+        {row.original.SI}
+      </BaseText>
     ),
   },
   {
-    key: "PayClass",
-    label: "Class",
-    width: 76,
-    renderCell: (r) => (
-      <Badge
-        label={r.PayClass}
-        color={theme.color.accent}
-        backgroundColor={theme.color.accent + "18"}
-      />
+    accessorKey: "Name",
+    header: "Name",
+    meta: { width: 140 },
+    cell: ({ row }) => (
+      <BaseText fontSize="xs" color="mutedStrong" numberOfLines={2}>
+        {row.original.Name}
+      </BaseText>
     ),
   },
   {
-    key: "SIAmount",
-    label: "Amount",
-    width: 100,
-    align: "right",
-    renderCell: (r) => (
-      <Text style={[styles.cellStrong, { textAlign: "right" }]}>
-        {fmt$(r.SIAmount)}
-      </Text>
+    accessorKey: "PayClass",
+    header: "Class",
+    meta: { width: 76 },
+    cell: ({ row }) => (
+      <OSPBadge type="success">{row.original.PayClass}</OSPBadge>
+    ),
+  },
+  {
+    accessorKey: "SIAmount",
+    header: "Amount",
+    meta: { width: 100, numeric: true },
+    cell: ({ row }) => (
+      <BaseText fontSize="xs" fontWeight="bold" textAlign="right">
+        {fmt$(row.original.SIAmount)}
+      </BaseText>
+    ),
+  },
+];
+
+const DRS_LOOKUP_COLUMNS: LookupColumn<DrsItem>[] = [
+  { key: "name", header: "DRS" },
+  { key: "SlipDate", header: "Slip Date" },
+  {
+    key: "payments",
+    header: "Amount",
+    render: (_value, row) => fmt$(drsAmount(row)),
+  },
+  {
+    key: "Status",
+    header: "Status",
+    render: (_value, row) => (
+      <OSPBadge type={STATUS_BADGE[row.Status]}>{row.Status}</OSPBadge>
     ),
   },
 ];
@@ -118,11 +143,29 @@ const PAYMENT_COLUMNS: TableColDef<DrsPaymentRow>[] = [
 // ── Screen ──────────────────────────────────────────────────────────────────
 
 export default function EncodeDepositScreen() {
-  const scrollHandler = useScrollNav();
-  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
   const router = useRouter();
+  const styles = useThemedStyles((t) =>
+    StyleSheet.create({
+      content: { padding: 16, gap: 10 },
+
+      formGrid: { flexDirection: "column", gap: 12 },
+      formGridRow: { flexDirection: "row", flexWrap: "wrap" },
+      formGridItem: { width: "48%" },
+
+      tableWrap: { marginTop: 14 },
+
+      totalsBox: {
+        backgroundColor: t.colors.canvas,
+        borderRadius: t.radii.sm,
+        borderWidth: 1,
+        borderColor: t.colors.hairline,
+        paddingHorizontal: 10,
+        marginTop: 12,
+      },
+    }),
+  );
 
   const { drs } = useLocalSearchParams<{ drs?: string }>();
 
@@ -196,165 +239,158 @@ export default function EncodeDepositScreen() {
 
   return (
     <>
-      <Animated.ScrollView
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        style={{ backgroundColor: theme.color.bg }}
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: APP_HEADER_HEIGHT + insets.top + 16,
-            paddingBottom: BOTTOM_NAV_HEIGHT + insets.bottom + 16,
-            paddingHorizontal: isTablet ? 24 : 16,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
+      <View style={[styles.content, { paddingTop: 16, paddingHorizontal: 8 }]}>
         {/* DRS search */}
         <LookupField<DrsItem>
           label="Digital Remittance Slip"
           placeholder="Search Digital Remittance Slip"
           modalTitle="Search Digital Remittance Slip"
-          data={DRS_ITEMS}
+          dataSource={DRS_ITEMS}
           searchKeys={["name"]}
+          columns={DRS_LOOKUP_COLUMNS}
           value={selectedDrs}
           onSelect={handleSelectDrs}
           renderDisplay={(item) => `${item.name} (${fmt$(drsAmount(item))})`}
-          keyExtractor={(item) => item.id}
+          variant="search"
         />
 
         {/* Deposit details */}
-        <Card
-          icon={Banknote}
-          title="Deposit Details"
-          subtitle={selectedDrs ? selectedDrs.name : "Select a DRS first"}
-          style={{ marginTop: 4 }}
-        >
-          {!selectedDrs ? (
-            <EmptyState
-              icon={Search}
-              title="No DRS Selected"
-              message="Search and select a Digital Remittance Slip to start entering deposit details."
-            />
-          ) : (
-            <>
-              <View style={[styles.formGrid, isTablet && styles.formGridRow]}>
-                <FloatingLabelInput
-                  label="Deposit Date Time"
-                  type="datetime"
-                  value={fmtDateTime(depositDate)}
-                  onChangeText={() => {}}
-                  pickerValue={depositDate}
-                  onChangeValue={setDepositDate}
-                  containerStyle={isTablet ? styles.formGridItem : undefined}
-                />
-                <FloatingLabelInput
-                  label="Account Number"
-                  type="number"
-                  value={accountNumber}
-                  onChangeText={setAccountNumber}
-                  containerStyle={isTablet ? styles.formGridItem : undefined}
-                />
-                <FloatingLabelInput
-                  label="Amount"
-                  type="number"
-                  value={String(amount)}
-                  onChangeText={(t) => setAmount(Number(t) || 0)}
-                  leftIcon={
-                    <PhilippinePeso size={14} color={theme.color.body} />
-                  }
-                  containerStyle={isTablet ? styles.formGridItem : undefined}
-                />
-                <FloatingLabelInput
-                  label="Bank Branch"
-                  type="select"
-                  value={bankBranch}
-                  onChangeText={setBankBranch}
-                  options={BANK_BRANCH_OPTIONS}
-                  onSelectOption={(opt) => setBankBranch(opt.label)}
-                  selectModalTitle="Select Bank Branch"
-                  searchable
-                  searchPlaceholder="Search bank or branch…"
-                  containerStyle={isTablet ? styles.formGridItem : undefined}
-                />
-              </View>
-
-              <Table<DrsPaymentRow>
-                title="Payments"
-                subtitle={`${totals?.count ?? 0} record(s)`}
-                data={selectedDrs.payments}
-                columns={PAYMENT_COLUMNS}
-                keyExtractor={(r) => r.SI}
-                emptyTitle="No payments"
-                emptyMessage="This DRS has no encoded payments."
-                style={{ marginTop: 14 }}
+        <Card.Root title="Deposit Details" style={{ marginTop: 4 }}>
+          <Card.Subtitle>
+            | {selectedDrs ? selectedDrs.name : "Select a DRS first"}
+          </Card.Subtitle>
+          <Card.MainContent>
+            {!selectedDrs ? (
+              <EmptyStateCard
+                icon={Search}
+                title="No DRS Selected"
+                description="Search and select a Digital Remittance Slip to start entering deposit details."
               />
-
-              {totals && (
-                <View style={styles.totalsBox}>
-                  <RowItem label="Total Payments" value={totals.count} />
-                  <RowItem label="Total Amount" value={fmt$(totals.amount)} />
-                  <RowItem
-                    label="Total Commission"
-                    value={fmt$(totals.commission)}
+            ) : (
+              <>
+                <View
+                  style={[styles.formGrid, isTablet && styles.formGridRow]}
+                >
+                  <DateTimeField
+                    label="Deposit Date Time"
+                    mode="datetime"
+                    value={depositDate}
+                    onChange={setDepositDate}
+                    format={fmtDateTime}
+                    containerStyle={isTablet ? styles.formGridItem : undefined}
+                  />
+                  <FloatingLabelInput
+                    label="Account Number"
+                    type="number"
+                    value={accountNumber}
+                    onValueChange={setAccountNumber}
+                    containerStyle={isTablet ? styles.formGridItem : undefined}
+                  />
+                  <FloatingLabelInput
+                    label="Amount"
+                    type="number"
+                    value={String(amount)}
+                    onValueChange={(t) => setAmount(Number(t) || 0)}
+                    startText="₱"
+                    containerStyle={isTablet ? styles.formGridItem : undefined}
+                  />
+                  <FloatingLabelSelect
+                    label="Bank Branch"
+                    value={bankBranch}
+                    onValueChange={setBankBranch}
+                    options={BANK_BRANCH_OPTIONS}
+                    containerStyle={isTablet ? styles.formGridItem : undefined}
                   />
                 </View>
-              )}
 
-              <AppButton
-                size="lg"
-                style={{ marginTop: 14 }}
-                onPress={handleSave}
-              >
-                Save Deposit
-              </AppButton>
-            </>
-          )}
-        </Card>
-      </Animated.ScrollView>
+                <View style={styles.tableWrap}>
+                  <DataTable<DrsPaymentRow>
+                    title="Payments"
+                    description={`${totals?.count ?? 0} record(s)`}
+                    data={selectedDrs.payments}
+                    columns={PAYMENT_COLUMNS}
+                    getRowId={(r) => r.SI}
+                    size="sm"
+                    features={{
+                      search: false,
+                      sorting: true,
+                      pagination: false,
+                      columnToggle: false,
+                      filtering: false,
+                      selection: false,
+                      detailSidebar: false,
+                    }}
+                    emptyState={
+                      <EmptyStateCard
+                        title="No payments"
+                        description="This DRS has no encoded payments."
+                      />
+                    }
+                    mobileConfig={{
+                      viewMode: "card",
+                      primaryField: "Name",
+                      titleTransform: "none",
+                      secondaryField: "SI",
+                      visibleFields: ["PayClass", "SIAmount"],
+                      labelMap: { PayClass: "Class", SIAmount: "Amount" },
+                      valueFormatter: {
+                        SIAmount: (v) => fmt$(Number(v) || 0),
+                      },
+                    }}
+                  />
+                </View>
+
+                {totals && (
+                  <View style={styles.totalsBox}>
+                    <RowItem
+                      label="Total Payments"
+                      value={totals.count.toLocaleString()}
+                    />
+                    <RowItem
+                      label="Total Amount"
+                      value={fmt$(totals.amount)}
+                    />
+                    <RowItem
+                      label="Total Commission"
+                      value={fmt$(totals.commission)}
+                    />
+                  </View>
+                )}
+
+                <BaseButton
+                  size="lg"
+                  fullWidth
+                  style={{ marginTop: 14 }}
+                  onPress={handleSave}
+                >
+                  Save Deposit
+                </BaseButton>
+              </>
+            )}
+          </Card.MainContent>
+        </Card.Root>
+      </View>
 
       {/* Save confirmation */}
-      <ConfirmModal
-        visible={confirmSaveVisible}
-        onCancel={() => setConfirmSaveVisible(false)}
+      <MessageDialog
+        open={confirmSaveVisible}
+        onOpenChange={(o) => !o && setConfirmSaveVisible(false)}
         onConfirm={performSave}
-        variant="info"
+        variant="confirmation"
         title="Confirmation"
         message="Do you want to save this deposit?"
-        confirmLabel="Save"
+        confirmText="Save"
       />
 
       {/* Status alert */}
-      <AlertModal
-        visible={alertState.visible}
-        onDismiss={dismissAlert}
+      <MessageDialog
+        open={alertState.open}
+        onOpenChange={(o) => !o && dismissAlert()}
         variant={alertState.variant}
         title={alertState.title}
         message={alertState.message}
+        confirmText="OK"
       />
     </>
   );
 }
-
-// ── Styles ───────────────────────────────────────────────────────────────────
-
-const styles = StyleSheet.create({
-  content: { padding: 16, gap: 10 },
-
-  formGrid: { flexDirection: "column", gap: 12 },
-  formGridRow: { flexDirection: "row", flexWrap: "wrap" },
-  formGridItem: { width: "48%" },
-
-  totalsBox: {
-    backgroundColor: theme.color.bg,
-    borderRadius: theme.radius.sm,
-    borderWidth: 1,
-    borderColor: theme.color.border,
-    paddingHorizontal: 10,
-    marginTop: 12,
-  },
-
-  cellStrong: { fontSize: 12, fontWeight: "700", color: theme.color.ink },
-  cellBody: { fontSize: 12, color: theme.color.body },
-});
