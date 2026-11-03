@@ -75,7 +75,7 @@ export async function signUp(
   };
 
   const identity: NodeIdentity = {
-    branch: input.employee.orgDescription,
+    branch: input.employee.orgUnitCode,
     salesForceCode: input.employee.salesForceCode,
   };
   const events = await prepareOutbox(
@@ -90,7 +90,7 @@ export async function signUp(
     ],
     identity,
   );
-
+  console.log("signUp: sending to inbox", events);
   let accepted: Set<string>;
   try {
     accepted = await sendToInbox(events);

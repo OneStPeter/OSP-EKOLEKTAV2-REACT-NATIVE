@@ -26,6 +26,7 @@ export type VerifiedEmployee = {
   position: string | null;
   /** The employee's branch, e.g. "Cubao Branch". */
   orgDescription: string | null;
+  orgUnitCode: string | null;
   /** "YYYY-MM-DD", or null when the record has none. */
   dateOfBirth: string | null;
 };

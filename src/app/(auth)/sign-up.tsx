@@ -3,6 +3,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { ArrowLeft, ArrowRight } from "lucide-react-native";
+import { useTheme } from "osp-ui-kit-native";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -33,6 +34,11 @@ import { SignUpError, signUp } from "@/services/sign-up.service";
 // ─── Brand colours ────────────────────────────────────────────────────────────
 const GREEN_MID = "#065f46";
 const GREEN_ACCENT = "#059669";
+
+// The UI kit's brand panel gradient (what LoginForm draws): its CSS 170deg
+// line as expo-linear-gradient start/end points.
+const PANEL_GRADIENT_START = { x: 0.413, y: 0.008 };
+const PANEL_GRADIENT_END = { x: 0.587, y: 0.992 };
 
 const FORM_MAX_WIDTH = 480;
 const EMAIL_MAX_LENGTH = 255; // varchar(255) on tblUsers.UserName
@@ -121,6 +127,7 @@ function pickDensity(availableHeight: number): Density {
 // ─── Screen ──────────────────────────────────────────────────────────────────
 export default function SignUpScreen() {
   const router = useRouter();
+  const { colors: c } = useTheme();
   const db = useSQLiteContext();
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -239,10 +246,10 @@ export default function SignUpScreen() {
 
   return (
     <LinearGradient
-      colors={["#022c22", "#064e3b", "#f0fdf4", "#ffffff"]}
+      colors={[c.heading, c.primaryHover, c.primaryTint, c.surface]}
       locations={[0, 0.35, 0.6, 1]}
-      start={{ x: 0.5, y: 0 }}
-      end={{ x: 0.4, y: 1 }}
+      start={PANEL_GRADIENT_START}
+      end={PANEL_GRADIENT_END}
       style={styles.gradient}
     >
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
