@@ -11,7 +11,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-export function SplashOverlay() {
+export function SplashOverlay({ onFinish }: { onFinish?: () => void }) {
   const styles = useThemedStyles(createStyles);
   const [visible, setVisible] = useState(true);
 

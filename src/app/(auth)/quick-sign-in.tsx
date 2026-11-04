@@ -1,6 +1,10 @@
 import { useRouter } from "expo-router";
 import { CreditCard, Phone, User } from "lucide-react-native";
-import { LoginForm, type LoginExternalLink } from "osp-ui-kit-native";
+import {
+  LoginForm,
+  StPeterProvider,
+  type LoginExternalLink,
+} from "osp-ui-kit-native";
 import React, { useState } from "react";
 
 import { useAuth } from "@/hooks/use-auth";
@@ -69,20 +73,24 @@ export default function QuickSignInScreen() {
     router.replace("/(tabs)/");
   }
 
+  // Pinned to the green brand gradient in light mode, same as the
+  // "Welcome back" login screen.
   return (
-    <LoginForm
-      onLogin={handleLogin}
-      onBiometricLogin={handleBiometric}
-      onGoogleLogin={() => signInWithSocial("google")}
-      onFacebookLogin={() => signInWithSocial("facebook")}
-      showBiometricLogin
-      isLoading={loading}
-      error={validationError ?? error ?? undefined}
-      logoSrc={require("@/assets/images/icon.png")}
-      // socialAccounts={SOCIAL_ACCOUNTS}
-      externalLinks={externalLinks}
-      showSignup={true}
-      showForgotPassword={true}
-    />
+    <StPeterProvider theme="green" colorMode="light">
+      <LoginForm
+        onLogin={handleLogin}
+        onBiometricLogin={handleBiometric}
+        onGoogleLogin={() => signInWithSocial("google")}
+        onFacebookLogin={() => signInWithSocial("facebook")}
+        showBiometricLogin
+        isLoading={loading}
+        error={validationError ?? error ?? undefined}
+        logoSrc={require("@/assets/images/icon.png")}
+        // socialAccounts={SOCIAL_ACCOUNTS}
+        externalLinks={externalLinks}
+        showSignup={true}
+        showForgotPassword={true}
+      />
+    </StPeterProvider>
   );
 }

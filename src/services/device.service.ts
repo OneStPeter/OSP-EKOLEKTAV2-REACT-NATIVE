@@ -65,14 +65,26 @@ async function resolveDeviceId(): Promise<string> {
   }
 }
 
-/** Human-readable device description for tblDeviceRegistration.DeviceType. */
+// expo-device can't tell a laptop from a desktop, so both share one label.
+const DEVICE_CATEGORY: Record<Device.DeviceType, string> = {
+  [Device.DeviceType.PHONE]: "MOBILE PHONE",
+  [Device.DeviceType.TABLET]: "TABLET",
+  [Device.DeviceType.DESKTOP]: "LAPTOP/DESKTOP",
+  [Device.DeviceType.TV]: "TV",
+  [Device.DeviceType.UNKNOWN]: "UNKNOWN",
+};
+
+/**
+ * Device category followed by the model, for tblDeviceRegistration.DeviceType,
+ * e.g. "MOBILE PHONE samsung SM-G991B" or "TABLET Apple iPad Air".
+ */
 export function getDeviceType(): string {
-  const os = [Device.osName ?? Platform.OS, Device.osVersion]
-    .filter(Boolean)
-    .join(" ");
-  const model = [Device.manufacturer, Device.modelName]
-    .filter(Boolean)
-    .join(" ");
-  const label = model ? `${os} - ${model}` : os;
-  return label.slice(0, MAX_LENGTH);
+  const category =
+    DEVICE_CATEGORY[Device.deviceType ?? Device.DeviceType.UNKNOWN];
+  // Web has no model name — fall back to the browser/OS name.
+  const model =
+    [Device.manufacturer, Device.modelName].filter(Boolean).join(" ") ||
+    Device.osName ||
+    Platform.OS;
+  return `${category} ${model}`.slice(0, MAX_LENGTH);
 }

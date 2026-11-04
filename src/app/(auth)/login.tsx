@@ -8,6 +8,7 @@ import {
   Phone,
   User,
 } from "lucide-react-native";
+import { StPeterProvider, useTheme } from "osp-ui-kit-native";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -30,6 +31,11 @@ import { useAuth } from "@/hooks/use-auth";
 const GREEN_MID = "#065f46";
 const GREEN_ACCENT = "#059669";
 const GREEN_TEXT = "#6ee7b7";
+
+// The UI kit's brand panel gradient (what LoginForm draws): its CSS 170deg
+// line as expo-linear-gradient start/end points.
+const PANEL_GRADIENT_START = { x: 0.413, y: 0.008 };
+const PANEL_GRADIENT_END = { x: 0.587, y: 0.992 };
 
 const FORM_MAX_WIDTH = 480;
 
@@ -89,8 +95,19 @@ function ShortcutButton({
 }
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
+// Pinned to the green brand gradient in light mode, same as the kit's
+// LoginForm on the quick sign-in screen.
 export default function LoginScreen() {
+  return (
+    <StPeterProvider theme="green" colorMode="light">
+      <LoginContent />
+    </StPeterProvider>
+  );
+}
+
+function LoginContent() {
   const router = useRouter();
+  const { colors: c } = useTheme();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const isSmallScreen = windowHeight < 700;
   const isTabletPortrait = windowWidth >= 768 && windowHeight > windowWidth;
@@ -152,10 +169,10 @@ export default function LoginScreen() {
 
   return (
     <LinearGradient
-      colors={["#022c22", "#064e3b", "#f0fdf4", "#ffffff"]}
+      colors={[c.heading, c.primaryHover, c.primaryTint, c.surface]}
       locations={[0, 0.35, 0.6, 1]}
-      start={{ x: 0.5, y: 0 }}
-      end={{ x: 0.4, y: 1 }}
+      start={PANEL_GRADIENT_START}
+      end={PANEL_GRADIENT_END}
       style={styles.gradient}
     >
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>

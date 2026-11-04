@@ -1,7 +1,49 @@
-import { UserSquare } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect } from "expo-router";
+import {
+  Briefcase,
+  Building2,
+  Calendar,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  Clock,
+  CreditCard,
+  Ellipsis,
+  FileText,
+  HandCoins,
+  Hash,
+  History,
+  MapPin,
+  MapPinned,
+  Phone,
+  RefreshCw,
+  Replace,
+  Search,
+  Trash2,
+  TrendingUpDown,
+  User,
+  UserPen,
+  Users,
+  UserSquare,
+  X,
+} from "lucide-react-native";
 import { EmptyStateCard } from "osp-ui-kit-native";
-import React from "react";
-import { View } from "react-native";
+import React, { useCallback, useMemo, useRef, useState } from "react";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native";
+import Animated from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { APP_HEADER_HEIGHT } from "@/components/navigation/AppHeader";
 import { BOTTOM_NAV_HEIGHT } from "@/components/navigation/BottomNavBar";

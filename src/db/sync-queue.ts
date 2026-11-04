@@ -47,11 +47,15 @@ const SALES_FORCE_CODE_KEY = "node_sales_force_code";
 /** SourceNodeId = EKOLEKTA:<branch>, SenderNodeId = EKOLEKTA:<SalesForceCode>. */
 function nodeIds({ branch, salesForceCode }: NodeIdentity) {
   const sourceNodeId = branch ? `${SOURCE_NODE_ID}:${branch}` : SOURCE_NODE_ID;
+  const destinationNodeId = branch
+    ? `${DESTINATION_NODE_ID}:${branch}`
+    : DESTINATION_NODE_ID; // always the same, for now
   return {
     sourceNodeId,
     senderNodeId: salesForceCode
       ? `${SOURCE_NODE_ID}:${salesForceCode}`
       : sourceNodeId,
+    destinationNodeId,
   };
 }
 
@@ -187,7 +191,7 @@ export async function prepareOutbox(
   events: NewOutboxEvent[],
   identity: NodeIdentity,
 ): Promise<OutboxItem[]> {
-  const { sourceNodeId, senderNodeId } = nodeIds(identity);
+  const { sourceNodeId, senderNodeId, destinationNodeId } = nodeIds(identity);
   // AUTOINCREMENT never reuses a value, so start past the highest ever issued.
   const row = await db.getFirstAsync<{ last: number | null }>(
     `SELECT MAX(s) AS last FROM (
@@ -203,7 +207,7 @@ export async function prepareOutbox(
     sequence: first + i,
     sourceNodeId,
     senderNodeId,
-    destinationNodeId: DESTINATION_NODE_ID,
+    destinationNodeId,
     entity: e.entity,
     recordId: e.recordId,
     operation: e.operation,
