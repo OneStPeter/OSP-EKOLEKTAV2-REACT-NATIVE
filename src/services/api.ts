@@ -6,7 +6,7 @@
 const API_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/+$/, "") ?? "";
 const SYNC_WORKER_URL =
   process.env.EXPO_PUBLIC_SYNC_WORKER_URL?.replace(/\/+$/, "") ?? "";
-const TIMEOUT_MS = 15_000;
+const TIMEOUT_MS = 30_000;
 
 let authToken: string | null = null;
 
@@ -70,7 +70,7 @@ async function request<T>(
   method: Method,
   path: string,
   body: unknown,
-  { timeoutMs = TIMEOUT_MS }: RequestOptions = {},
+  { timeoutMs = TIMEOUT_MS, headers: requestHeaders }: RequestOptions = {},
 ): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -82,6 +82,7 @@ async function request<T>(
       headers: {
         Accept: "application/json",
         ...(body !== undefined && { "Content-Type": "application/json" }),
+        ...requestHeaders,
         ...(authToken && { Authorization: `Bearer ${authToken}` }),
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,

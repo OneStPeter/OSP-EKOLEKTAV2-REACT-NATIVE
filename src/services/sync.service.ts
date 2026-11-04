@@ -145,14 +145,17 @@ async function pushChanges(db: SQLiteDatabase) {
  * lower-cased. Writes nothing locally — callers record the outcome.
  */
 export async function sendToInbox(rows: OutboxItem[]): Promise<Set<string>> {
+  const events = rows.map(toEvent);
+  console.log("Sync API payload:", JSON.stringify(events, null, 2));
   const res = await syncWorkerRequest<{ acceptedEventIds: string[] }>(
     "POST",
     "/Sync/inbox",
-    rows.map(toEvent),
+    events,
     {
       headers: { "X-Api-Key": process.env.EXPO_PUBLIC_SYNC_API_KEY ?? "" },
     },
   );
+
   return new Set(res.acceptedEventIds.map((id) => id.toLowerCase()));
 }
 

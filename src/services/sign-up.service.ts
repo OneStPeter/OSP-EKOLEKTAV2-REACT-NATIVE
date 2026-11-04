@@ -90,9 +90,10 @@ export async function signUp(
     ],
     identity,
   );
-  console.log("signUp: sending to inbox", events);
+
   let accepted: Set<string>;
   try {
+    // console.log("Sync inbox payload:", JSON.stringify(events, null, 2));
     accepted = await sendToInbox(events);
   } catch (e) {
     const status = e instanceof ApiError ? e.status : 0;
@@ -102,6 +103,7 @@ export async function signUp(
         : "The server could not accept your sign-up. Please try again.",
     );
   }
+
   if (!events.every((e) => accepted.has(e.eventId.toLowerCase()))) {
     throw new SignUpError(
       "The server could not accept your sign-up. Please try again.",
