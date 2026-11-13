@@ -14,7 +14,9 @@
 //        APPLIED / SKIPPED → the record is synced; FAILED → the record is failed;
 //        PENDING → asked again next time (tables the worker does not apply yet
 //        stay here until it does); unknown → sent again.
-//   3. PULL — people changed on-prem since the last pull, refreshed if held here:
+//   3. RECEIVE — answers to this agent's REQUEST rows (see bpis-pull.service):
+//        GET  {WORKER}/sync/outbox?nodeId=EKOLEKTA:<SalesForceCode>
+//   4. PULL — people changed on-prem since the last pull, refreshed if held here:
 //        GET  {WORKER}/changes?after={cursor}   → { personIds, next, hasMore }
 //        POST {WORKER}/person/batch             → their records (see account-sync)
 
@@ -42,6 +44,7 @@ import {
   type WorkerPerson,
 } from "@/services/account-sync.service";
 import { isSyncWorkerConfigured, syncWorkerRequest } from "@/services/api";
+import { receiveResponses } from "@/services/bpis-pull.service";
 
 export type SyncEntity = {
   /** Local table name; also the EntityType value in tblSyncOutbox. */
@@ -98,6 +101,7 @@ async function doSync(db: SQLiteDatabase): Promise<SyncResult> {
   try {
     pushed = await pushChanges(db);
     await confirmSent(db);
+    await receiveResponses(db);
     const pulled = await pullChanges(db);
     return { status: "ok", pushed, pulled };
   } catch (e) {
@@ -151,9 +155,6 @@ export async function sendToInbox(rows: OutboxItem[]): Promise<Set<string>> {
     "POST",
     "/Sync/inbox",
     events,
-    {
-      headers: { "X-Api-Key": process.env.EXPO_PUBLIC_SYNC_API_KEY ?? "" },
-    },
   );
 
   return new Set(res.acceptedEventIds.map((id) => id.toLowerCase()));
@@ -170,9 +171,12 @@ function toEvent(row: OutboxItem) {
     SourceSequence: row.sequence,
     SenderNodeId: row.senderNodeId ?? row.sourceNodeId,
     DestinationNodeId: row.destinationNodeId,
-    EventType: { create: "CREATED", update: "UPDATED", delete: "DELETED" }[
-      row.operation
-    ],
+    EventType: {
+      create: "CREATED",
+      update: "UPDATED",
+      delete: "DELETED",
+      request: "REQUEST",
+    }[row.operation],
     EntityType: row.entity,
     EntityId: row.recordId,
     // Deletes queued before payloads carried the key: the worker needs it.

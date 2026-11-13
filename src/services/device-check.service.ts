@@ -6,7 +6,6 @@
 //    The answer is cached locally for the next offline launch.
 // 2. Offline, API unset, timeout or server error → fall back to the local copy.
 
-import NetInfo from "@react-native-community/netinfo";
 import type { SQLiteDatabase } from "expo-sqlite";
 
 import {
@@ -15,6 +14,7 @@ import {
 } from "@/db/repositories/device-registration.repository";
 import { apiRequest, isApiConfigured } from "@/services/api";
 import { getDeviceId } from "@/services/device.service";
+import { isOnline } from "@/services/network.service";
 
 // Keep the splash short when the server is slow; we fall back to local data.
 const SERVER_CHECK_TIMEOUT_MS = 30_000;
@@ -61,9 +61,4 @@ export async function checkDeviceRegistration(
   }
   // Re-read locally so an offline sign-up still waiting to upload counts too.
   return local("ok");
-}
-
-async function isOnline() {
-  const state = await NetInfo.fetch();
-  return !!state.isConnected && state.isInternetReachable !== false;
 }

@@ -221,6 +221,46 @@ const MIGRATIONS: Migration[] = [
       ALTER TABLE tblSyncOutbox ADD COLUMN SenderNodeId TEXT;
     `,
   },
+  {
+    version: 7,
+    up: `
+      -- Pulls from BPIS go through the sync worker as REQUEST events, answered by
+      -- RESPONSE events with the same EventId (services/bpis-pull.service.ts).
+      -- SQLite cannot change a CHECK constraint, so the table is rebuilt.
+      CREATE TABLE tblSyncOutbox_v7 (
+        Sequence          INTEGER PRIMARY KEY AUTOINCREMENT,
+        OutboxId          TEXT    NOT NULL UNIQUE,
+        EventId           TEXT,
+        SourceNodeId      TEXT,
+        DestinationNodeId TEXT,
+        EventType         TEXT    CHECK (EventType IN ('CREATED', 'UPDATED', 'DELETED', 'REQUEST')),
+        EntityType        TEXT,
+        EntityId          TEXT,
+        BaseVersion       INTEGER,
+        EntityVersion     INTEGER,
+        Payload           TEXT,
+        Status            TEXT    NOT NULL DEFAULT 'PENDING'
+                          CHECK (Status IN ('PENDING', 'SENT', 'APPLIED', 'SKIPPED', 'FAILED')),
+        AttemptCount      INTEGER NOT NULL DEFAULT 0,
+        NextAttemptAt     TEXT,
+        LastAttemptAt     TEXT,
+        OccuredAt         TEXT,
+        ReceivedAt        TEXT,
+        LastError         TEXT,
+        SenderNodeId      TEXT
+      );
+      INSERT INTO tblSyncOutbox_v7 SELECT * FROM tblSyncOutbox;
+
+      DROP TABLE tblSyncOutbox;
+      ALTER TABLE tblSyncOutbox_v7 RENAME TO tblSyncOutbox;
+      CREATE INDEX IF NOT EXISTS idx_tblSyncOutbox_Status_Sequence
+        ON tblSyncOutbox (Status, Sequence);
+      CREATE INDEX IF NOT EXISTS idx_tblSyncOutbox_Entity
+        ON tblSyncOutbox (EntityType, EntityId);
+      CREATE INDEX IF NOT EXISTS idx_tblSyncOutbox_EventId
+        ON tblSyncOutbox (EventId);
+    `,
+  },
 ];
 
 export const DATABASE_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

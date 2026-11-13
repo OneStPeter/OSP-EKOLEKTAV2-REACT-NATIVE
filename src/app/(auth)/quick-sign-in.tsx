@@ -5,31 +5,54 @@ import {
   StPeterProvider,
   type LoginExternalLink,
 } from "osp-ui-kit-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { View } from "react-native";
 
 import { useAuth } from "@/hooks/use-auth";
+import { getBiometricUser } from "@/services/biometric-auth.service";
+import { getRememberedAccount } from "@/services/offline-auth.service";
+import type { AuthUser } from "@/types/auth";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// ─── Mock "remembered" account (this device has signed in before) ────────────
-// const REMEMBERED_ACCOUNT = {
-//   name: "Joyce Basilio-Ramos",
-//   email: "joycemb@stpeter.com.ph",
-//   avatarUrl: Image.resolveAssetSource(require("@/assets/images/Profile.png"))
-//     .uri,
-//   initials: "JB",
-// };
+type QuickSignIn = {
+  /** The account that last signed in on this device. */
+  account: AuthUser | null;
+  /** Fingerprint / Face ID is turned on for that account. */
+  biometric: boolean;
+};
 
-// const SOCIAL_ACCOUNTS: LoginSocialAccount[] = [
-//   { provider: "google", ...REMEMBERED_ACCOUNT },
-//   { provider: "facebook", ...REMEMBERED_ACCOUNT },
-// ];
+async function loadQuickSignIn(): Promise<QuickSignIn> {
+  const [account, biometricUser] = await Promise.all([
+    getRememberedAccount(),
+    getBiometricUser(),
+  ]);
+  return {
+    account,
+    biometric:
+      !!account && biometricUser === account.email.trim().toLowerCase(),
+  };
+}
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 export default function QuickSignInScreen() {
   const router = useRouter();
-  const { loading, error, signIn, signInWithSocial } = useAuth();
+  const { loading, error, signIn, signInWithBiometric, signInWithSocial } =
+    useAuth();
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [quick, setQuick] = useState<QuickSignIn | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    loadQuickSignIn()
+      .catch((): QuickSignIn => ({ account: null, biometric: false }))
+      .then((result) => {
+        if (active) setQuick(result);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const externalLinks: LoginExternalLink[] = [
     { id: "contact", label: "Contact Us", icon: Phone, onSelect: () => {} },
@@ -66,12 +89,16 @@ export default function QuickSignInScreen() {
     await signIn({ email, password, remember });
   }
 
-  // TODO: replace the simulated scan with expo-local-authentication
   async function handleBiometric() {
-    await new Promise((r) => setTimeout(r, 900));
-    // @ts-expect-error — expo-router typed routes don't expose group segment paths
-    router.replace("/(tabs)/");
+    setValidationError(null);
+    await signInWithBiometric();
   }
+
+  // initialUsername is read once on mount, so wait for the remembered account
+  // (a keystore read, a few milliseconds) before showing the form.
+  if (!quick) return <View style={{ flex: 1, backgroundColor: "#022c22" }} />;
+
+  const firstName = quick.account?.name.trim().split(/\s+/)[0];
 
   // Pinned to the green brand gradient in light mode, same as the
   // "Welcome back" login screen.
@@ -82,11 +109,18 @@ export default function QuickSignInScreen() {
         onBiometricLogin={handleBiometric}
         onGoogleLogin={() => signInWithSocial("google")}
         onFacebookLogin={() => signInWithSocial("facebook")}
-        showBiometricLogin
+        // Offered once the user turned it on after a password sign-in.
+        showBiometricLogin="auto"
+        biometricAvailable={quick.biometric}
+        initialUsername={quick.account?.email ?? ""}
+        quickSignInSubtitle={
+          firstName
+            ? `Welcome back, ${firstName}`
+            : "Choose how you'd like to continue"
+        }
         isLoading={loading}
         error={validationError ?? error ?? undefined}
         logoSrc={require("@/assets/images/icon.png")}
-        // socialAccounts={SOCIAL_ACCOUNTS}
         externalLinks={externalLinks}
         showSignup={true}
         showForgotPassword={true}

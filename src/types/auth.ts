@@ -9,6 +9,10 @@ export interface AuthUser {
   email: string;
   name: string;
   role: string;
+  /** tblSalesForce.SalesForceCode; the BPIS pull and sync events are keyed by it. */
+  salesForceCode?: string | null;
+  /** tblSalesForce.OrgUnitCode, the agent's branch. */
+  branch?: string | null;
 }
 
 export interface AuthState {
