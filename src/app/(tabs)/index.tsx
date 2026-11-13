@@ -1,6 +1,8 @@
+import { useSQLiteContext } from "expo-sqlite";
 import {
   ChevronLeft,
   ChevronRight,
+  Download,
   UserCheck,
   UserMinus,
   UserPlus,
@@ -8,6 +10,7 @@ import {
 } from "lucide-react-native";
 import {
   alpha,
+  BaseButton,
   BaseIconButton,
   BaseText,
   BrandedAvatar,
@@ -26,6 +29,7 @@ import {
 } from "osp-ui-kit-native";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
@@ -45,7 +49,9 @@ import Animated, {
 } from "react-native-reanimated";
 import Svg, { Circle } from "react-native-svg";
 
+import { BpisPullProgress } from "@/components/BpisPullProgress";
 import { useUserProfile } from "@/context/user-profile-context";
+import { exportDatabase } from "@/services/database-export.service";
 
 // ── Static data ────────────────────────────────────────────────────────────
 const PLANHOLDERS = {
@@ -637,6 +643,20 @@ export default function HomeScreen() {
   const [year, setYear] = useState<Year>("2026");
   const chartData = MONTHLY_SALES[year];
 
+  const db = useSQLiteContext();
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExportDatabase() {
+    setExporting(true);
+    try {
+      await exportDatabase(db);
+    } catch (e) {
+      Alert.alert("Export failed", e instanceof Error ? e.message : String(e));
+    } finally {
+      setExporting(false);
+    }
+  }
+
   useEffect(() => {
     carouselRef.current?.scrollTo({ x: 0, animated: false });
     setActiveSlide(0);
@@ -670,6 +690,9 @@ export default function HomeScreen() {
   return (
     <View style={[s.content, { paddingTop: 16, paddingHorizontal: 8 }]}>
       {/* ── Profit ──────────────────────────────────── */}
+      {/* ── BPIS data pull (hidden when idle) ───────── */}
+      <BpisPullProgress />
+
       <ProfitCard />
 
       {/* ── Account Overview ──────────────────────────── */}
@@ -856,6 +879,22 @@ export default function HomeScreen() {
           <BarChart key={year} data={chartData} />
         </Card.MainContent>
       </Card.Root>
+
+      {/* ── Data ──────────────────────────────────────── */}
+      <SectionHeader title="Data" subtitle="Local database backup" />
+
+      <BaseButton
+        variant="outline"
+        size="lg"
+        leftIcon={Download}
+        loading={exporting}
+        loadingText="Exporting…"
+        fullWidth={!isTablet}
+        style={{ alignSelf: isTablet ? "flex-end" : "stretch" }}
+        onPress={handleExportDatabase}
+      >
+        Export Database
+      </BaseButton>
     </View>
   );
 }

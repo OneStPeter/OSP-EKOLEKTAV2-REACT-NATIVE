@@ -1,10 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
-import { useSQLiteContext } from "expo-sqlite";
 import { ChevronDown, X } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -40,7 +38,6 @@ import {
 
 import { BRAND_COLORS } from "@/constants/colors";
 import { useNav } from "@/context/nav-context";
-import { exportDatabase } from "@/services/database-export.service";
 
 const ProfileImage = require("../../../assets/images/Profile.png");
 
@@ -384,19 +381,6 @@ export function SidebarDrawer({
     router.replace("/(auth)/quick-sign-in");
   }
 
-  const db = useSQLiteContext();
-  const [exporting, setExporting] = useState(false);
-
-  async function handleExportDatabase() {
-    setExporting(true);
-    try {
-      await exportDatabase(db);
-    } catch (e) {
-      Alert.alert("Export failed", e instanceof Error ? e.message : String(e));
-    } finally {
-      setExporting(false);
-    }
-  }
   const insets = useSafeAreaInsets();
   const c = C.light;
   const { width } = useWindowDimensions();
@@ -525,20 +509,6 @@ export function SidebarDrawer({
             },
           ]}
         >
-          <TouchableOpacity
-            style={styles.signOutBtn}
-            onPress={handleExportDatabase}
-            disabled={exporting}
-            activeOpacity={0.75}
-            accessibilityRole="button"
-            accessibilityLabel="Export database"
-          >
-            <Ionicons name="download-outline" size={20} color={c.itemIcon} />
-            <Text style={[styles.exportText, { color: c.itemText }]}>
-              {exporting ? "Exporting…" : "Export Database"}
-            </Text>
-          </TouchableOpacity>
-
           <TouchableOpacity
             style={styles.signOutBtn}
             onPress={handleSignOut}
@@ -719,10 +689,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#dc2626",
-  },
-  exportText: {
-    fontSize: 14,
-    fontWeight: "600",
   },
   footerDivider: {
     height: StyleSheet.hairlineWidth,

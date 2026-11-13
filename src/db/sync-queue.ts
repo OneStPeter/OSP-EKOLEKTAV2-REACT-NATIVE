@@ -5,9 +5,10 @@ import type { SQLiteDatabase } from "expo-sqlite";
 // Row lifecycle, as on the server: PENDING → SENT (in the sync worker's inbox)
 // → APPLIED | SKIPPED | FAILED (the worker's outcome on-prem).
 
-export type SyncOperation = "create" | "update" | "delete";
+/** "request" asks another node for data; it changes nothing (see `enqueueRequests`). */
+export type SyncOperation = "create" | "update" | "delete" | "request";
 
-type EventType = "CREATED" | "UPDATED" | "DELETED";
+type EventType = "CREATED" | "UPDATED" | "DELETED" | "REQUEST";
 export type OutboxStatus =
   | "PENDING"
   | "SENT"
@@ -19,11 +20,13 @@ const EVENT_TYPES: Record<SyncOperation, EventType> = {
   create: "CREATED",
   update: "UPDATED",
   delete: "DELETED",
+  request: "REQUEST",
 };
 const OPERATIONS: Record<EventType, SyncOperation> = {
   CREATED: "create",
   UPDATED: "update",
   DELETED: "delete",
+  REQUEST: "request",
 };
 
 /** This app, as a sync node. */
@@ -45,8 +48,10 @@ const BRANCH_KEY = "node_branch";
 const SALES_FORCE_CODE_KEY = "node_sales_force_code";
 
 /** SourceNodeId = EKOLEKTA:<branch>, SenderNodeId = EKOLEKTA:<SalesForceCode>. */
-function nodeIds({ branch, salesForceCode }: NodeIdentity) {
-  const sourceNodeId = branch ? `${SOURCE_NODE_ID}:${branch}` : SOURCE_NODE_ID;
+export function nodeIds({ branch, salesForceCode }: NodeIdentity) {
+  const sourceNodeId = branch
+    ? `${SOURCE_NODE_ID}:${salesForceCode}`
+    : SOURCE_NODE_ID;
   const destinationNodeId = branch
     ? `${DESTINATION_NODE_ID}:${branch}`
     : DESTINATION_NODE_ID; // always the same, for now
@@ -172,6 +177,41 @@ export async function enqueue(
   );
 }
 
+/**
+ * Adds PENDING REQUEST rows, one per entry, sent by `identity` (passed in, as
+ * the requester may not be saved yet). Returns their EventIds in order: the
+ * answering RESPONSE events carry the same ones.
+ */
+export async function enqueueRequests(
+  db: SQLiteDatabase,
+  identity: NodeIdentity,
+  requests: { entity: string; recordId: string; payload: unknown }[],
+): Promise<string[]> {
+  const now = new Date().toISOString();
+  const { sourceNodeId, senderNodeId, destinationNodeId } = nodeIds(identity);
+  const eventIds: string[] = [];
+  for (const r of requests) {
+    const eventId = newId();
+    await db.runAsync(
+      `INSERT INTO tblSyncOutbox (OutboxId, EventId, SourceNodeId, SenderNodeId, DestinationNodeId,
+         EventType, EntityType, EntityId, Payload, Status, AttemptCount, NextAttemptAt, OccuredAt)
+       VALUES (?, ?, ?, ?, ?, 'REQUEST', ?, ?, ?, 'PENDING', 0, ?, ?)`,
+      newId(),
+      eventId,
+      sourceNodeId,
+      senderNodeId,
+      destinationNodeId,
+      r.entity,
+      r.recordId,
+      JSON.stringify(r.payload),
+      now,
+      now,
+    );
+    eventIds.push(eventId);
+  }
+  return eventIds;
+}
+
 export type NewOutboxEvent = {
   entity: string;
   recordId: string;
@@ -275,8 +315,10 @@ export async function getSentEvents(
 
 /** Local changes not yet on the server: unsent, or sent and not yet applied. */
 export async function getPendingCount(db: SQLiteDatabase) {
+  // Requests change nothing, so they are not local changes.
   const row = await db.getFirstAsync<{ n: number }>(
-    "SELECT COUNT(*) AS n FROM tblSyncOutbox WHERE Status IN ('PENDING', 'SENT')",
+    `SELECT COUNT(*) AS n FROM tblSyncOutbox
+     WHERE Status IN ('PENDING', 'SENT') AND EventType <> 'REQUEST'`,
   );
   return row?.n ?? 0;
 }

@@ -42,7 +42,12 @@
       ],
       "@react-native-community/datetimepicker",
       "expo-sqlite",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": "Allow $(PRODUCT_NAME) to use Face ID to sign you in."
+        }
+      ],
       "expo-sharing"
     ],
     "experiments": {

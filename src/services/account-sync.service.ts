@@ -106,7 +106,7 @@ export async function applyPersons(db: SQLiteDatabase, persons: WorkerPerson[]) 
 type TableInfo = { columns: Map<string, string>; primaryKey: string[] };
 
 /** Local column names per table, looked up once per apply. */
-class TableCache {
+export class TableCache {
   private readonly cache = new Map<string, TableInfo | null>();
   constructor(private readonly db: SQLiteDatabase) {}
 
@@ -130,7 +130,7 @@ class TableCache {
   }
 }
 
-async function upsertRows(db: SQLiteDatabase, tables: TableCache, table: string, rows: Row[]) {
+export async function upsertRows(db: SQLiteDatabase, tables: TableCache, table: string, rows: Row[]) {
   const info = await tables.get(table);
   // Not created on this device yet (server schema not applied), or keyless: an
   // upsert needs a key to tell a new row from an existing one.
